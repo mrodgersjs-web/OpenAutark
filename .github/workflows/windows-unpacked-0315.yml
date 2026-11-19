@@ -44,7 +44,9 @@ jobs:
           if ($LASTEXITCODE) { throw 'npm ci failed' }
           npm run build
           if ($LASTEXITCODE) { throw 'build failed' }
-          npx --no-install electron-builder --win --x64 --dir --publish never
+          # The nsis target (unsigned, discarded) makes electron-builder write resources/app-update.yml and elevate.exe
+          # into win-unpacked, as in a normal release; the installer itself is built again on the release PC.
+          npx --no-install electron-builder --win nsis --x64 --publish never
           if ($LASTEXITCODE) { throw 'packaging failed' }
       - name: Check and archive the app folder
         shell: pwsh
