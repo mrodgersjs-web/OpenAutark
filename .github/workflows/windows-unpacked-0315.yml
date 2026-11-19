@@ -1,0 +1,74 @@
+# Owns: compiling the unsigned Windows x64 app folder (win-unpacked) of the tagged release v0.3.15 on a clean runner,
+# with electron-builder's resource editing (version, product name, icon) and without any signing, and keeping it as a
+# short-lived run artifact. The folder is signed with the Certum key on the release PC and packaged there (--prepackaged).
+# Never: signs, publishes, writes to the repository or uses a secret.
+name: Windows unpacked 0.3.15
+on:
+  push:
+    branches: [release/0.3.15]
+    paths: [.github/workflows/windows-unpacked-0315.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  unpacked:
+    if: github.repository == 'teydra/OpenAutark'
+    runs-on: windows-2025
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: a6313a5c19e03884573ea43aed3e57c463e31f3b
+          persist-credentials: false
+      - name: Verify source and version
+        shell: pwsh
+        run: |
+          if ((git rev-parse HEAD) -cne 'a6313a5c19e03884573ea43aed3e57c463e31f3b') { throw 'Unexpected source' }
+          $p = Get-Content apps/desktop/package.json -Raw | ConvertFrom-Json
+          if ($p.version -cne '0.3.15') { throw 'Unexpected version' }
+          if ($p.devDependencies.'electron-builder' -cne '26.15.3' -or $p.build.win.signAndEditExecutable -ne $true) { throw 'Unexpected Windows build configuration' }
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24.22.2'
+      - name: Install, build and package unsigned
+        working-directory: apps/desktop
+        shell: pwsh
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: |
+          $ErrorActionPreference = 'Stop'
+          foreach ($name in 'WIN_CSC_LINK', 'CSC_LINK', 'WIN_CSC_KEY_PASSWORD', 'CSC_KEY_PASSWORD', 'AUTARK_WINDOWS_SIGNING') {
+            if ([Environment]::GetEnvironmentVariable($name)) { throw "Unexpected signing environment: $name" }
+          }
+          npm ci --no-fund --no-audit
+          if ($LASTEXITCODE) { throw 'npm ci failed' }
+          npm run build
+          if ($LASTEXITCODE) { throw 'build failed' }
+          npx --no-install electron-builder --win --x64 --dir --publish never
+          if ($LASTEXITCODE) { throw 'packaging failed' }
+      - name: Check and archive the app folder
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $dir = 'apps/desktop/dist/win-unpacked'
+          if (!(Test-Path "$dir/Autark.exe") -or !(Test-Path "$dir/resources/app.asar") -or !(Test-Path "$dir/resources/app-update.yml")) { throw 'Missing packaged app' }
+          $exe = Get-Item -LiteralPath "$dir/Autark.exe"
+          $v = $exe.VersionInfo
+          "FileVersion=$($v.FileVersion) ProductVersion=$($v.ProductVersion) ProductName=$($v.ProductName) Company=$($v.CompanyName)" >> $env:GITHUB_STEP_SUMMARY
+          if ($v.ProductName -cne 'Autark' -or $v.FileMajorPart -ne 0 -or $v.FileMinorPart -ne 3 -or $v.FileBuildPart -ne 15) { throw 'Missing or unexpected Autark EXE metadata' }
+          if ((Get-AuthenticodeSignature -LiteralPath $exe.FullName).Status -ne 'NotSigned') { throw 'Autark.exe is not an unsigned candidate' }
+          Get-ChildItem -LiteralPath $dir -Recurse -File | Where-Object { $_.Extension -in '.exe','.dll','.node' } | ForEach-Object {
+            "$((Get-AuthenticodeSignature -LiteralPath $_.FullName).Status) $($_.FullName.Substring((Resolve-Path $dir).Path.Length))" } >> $env:GITHUB_STEP_SUMMARY
+          New-Item -ItemType Directory -Force evidence | Out-Null
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          [IO.Compression.ZipFile]::CreateFromDirectory((Resolve-Path -LiteralPath $dir).Path, (Join-Path (Resolve-Path -LiteralPath evidence).Path 'win-unpacked.zip'))
+          $hash = (Get-FileHash evidence/win-unpacked.zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          [ordered]@{ source_commit = (git rev-parse HEAD); run_id = $env:GITHUB_RUN_ID; run_attempt = $env:GITHUB_RUN_ATTEMPT; version = '0.3.15'; signing = 'none'; archive = 'win-unpacked.zip'; sha256 = $hash } | ConvertTo-Json | Set-Content evidence/manifest.json -Encoding utf8
+          "win-unpacked.zip sha256 $hash" >> $env:GITHUB_STEP_SUMMARY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: unsigned-win-unpacked-0.3.15
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 3
+          compression-level: 0
