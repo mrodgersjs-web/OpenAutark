@@ -34,8 +34,9 @@ test('the tab list, the save and the quit never ask a page directly: every acces
 
 test('a page that closes itself ends its tab like the person\'s Close; our own close and the memory saver do not trigger it', () => {
   const browser = src('workspace-browser.ts');
-  assert.match(browser, /contents\.once\('destroyed', \(\) => \{ this\.onTab\?\.\(id, null\); if \(!tab\.closing && this\.tabs\.get\(id\) === tab\) this\.command\(\{ action: 'close', id \}\); \}\);/,
-    "the 'destroyed' event runs the close command for a tab that is still listed and not closing");
+  assert.match(browser, /contents\.on\('close',[\s\S]*?selfClosedUrl = address/, 'remember the address while the contents are still live');
+  assert.match(browser, /contents\.once\('destroyed',[\s\S]*?if \(!tab\.closing && this\.tabs\.get\(id\) === tab\) \{[\s\S]*?this\.command\(\{ action: 'close', id \}, selfClosedUrl\)/,
+    "only a still-listed tab that wasn't closed by the app is removed on destruction, with the captured address for the normal history path");
   const drop = /private drop\(id: string, tab: Tab\): void \{([^]*?)\n  \}/.exec(browser)?.[1] ?? '';
   assert.ok(drop.indexOf('tab.closing = true') >= 0, 'drop() marks the tab as closing');
   assert.ok(drop.indexOf('tab.closing = true') < drop.indexOf('livePage(tab)?.close()'), '…before the page is asked to close, so the event cannot fire the close command');

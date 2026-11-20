@@ -250,7 +250,21 @@ export class WorkspaceBrowser {
     const contents = view.webContents;
     this.scheme(contents);
     this.chrome.attach(id, contents); // before the listeners below, so their publish carries its state
-    this.onTab?.(id, contents); contents.once('destroyed', () => { this.onTab?.(id, null); if (!tab.closing && this.tabs.get(id) === tab) this.command({ action: 'close', id }); }); // a page that closes itself (window.close(), a confirmation link) ends its tab like the person's Close; else its dead entry broke every list, save and the quit (18.11.2026)
+    // Capture the address while Electron still exposes it. Destruction still owns tab removal.
+    let selfClosedUrl: string | undefined;
+    contents.on('close', () => {
+      if (!tab.closing && this.tabs.get(id) === tab && !contents.isDestroyed()) {
+        const address = contents.getURL();
+        if (/^https?:\/\//i.test(address)) selfClosedUrl = address;
+      }
+    });
+    this.onTab?.(id, contents);
+    contents.once('destroyed', () => {
+      this.onTab?.(id, null);
+      if (!tab.closing && this.tabs.get(id) === tab) {
+        this.command({ action: 'close', id }, selfClosedUrl);
+      }
+    });
     this.parked.delete(id);
     const allow = (url: string) => { try { return /^https?:\/\//i.test(url) && Boolean(new URL(browserUrl(url)).host); } catch { return false; } };
     contents.on('will-navigate', (event, url) => { if (!allow(url)) event.preventDefault(); });
@@ -268,8 +282,8 @@ export class WorkspaceBrowser {
       this.publish();
     });
     contents.on('did-stop-loading', () => this.publish());
-    contents.on('did-navigate', () => { tab.favicon = undefined; tab.iconAsk++; this.publish(); }); // another page: its own icon follows
-    contents.on('did-navigate-in-page', () => this.publish());
+    contents.on('did-navigate', () => { selfClosedUrl = undefined; tab.favicon = undefined; tab.iconAsk++; this.publish(); }); // another page: its own icon follows
+    contents.on('did-navigate-in-page', (_event, _url, main) => { if (main) selfClosedUrl = undefined; this.publish(); });
     contents.on('page-title-updated', () => this.publish());
     contents.on('page-favicon-updated', (_event, favicons) => { void this.icon(tab, favicons); });
     contents.on('did-fail-load', (_event, code, _description, _url, main) => {
@@ -327,7 +341,7 @@ export class WorkspaceBrowser {
     return tab;
   }
 
-  private command(command: WorkspaceBrowserCommand): WorkspaceBrowserPage[] {
+  private command(command: WorkspaceBrowserCommand, selfClosedUrl?: string): WorkspaceBrowserPage[] {
     if (this.getWindow()) this.attachWindow();
     if (command.action === 'list') return this.list();
     if (command.action === 'layout') { this.saved.setLayout(command.spaces); this.saved.save(this.addresses()); return this.list(); }
@@ -348,7 +362,7 @@ export class WorkspaceBrowser {
     }
     if (command.action === 'close') {
       const live = this.tabs.get(command.id)?.view.webContents;
-      const address = live && !live.isDestroyed() ? live.getURL() : this.saved.restoredUrl(command.id);
+      const address = live && !live.isDestroyed() ? live.getURL() : selfClosedUrl ?? this.saved.restoredUrl(command.id);
       if (address) this.closedTabs.push({ url: address, space: this.saved.spaceOf(command.id) });
       if (live && !live.isDestroyed() && live.isFocused()) this.focusNext = this.saved.spaceOf(command.id); // the tab shown next there gets the keyboard
       this.parked.delete(command.id); this.marks.closed(command.id);
