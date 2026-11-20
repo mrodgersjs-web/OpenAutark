@@ -252,7 +252,8 @@ export class WorkspaceBrowser {
     this.chrome.attach(id, contents); // before the listeners below, so their publish carries its state
     // Capture the address while Electron still exposes it. Destruction still owns tab removal.
     let selfClosedUrl: string | undefined;
-    contents.on('close', () => {
+    // Electron emits this before destruction (CloseContents), but omits it from WebContents' event overloads.
+    (contents as import('node:events').EventEmitter).on('close', () => {
       if (!tab.closing && this.tabs.get(id) === tab && !contents.isDestroyed()) {
         const address = contents.getURL();
         if (/^https?:\/\//i.test(address)) selfClosedUrl = address;
