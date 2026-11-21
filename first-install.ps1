@@ -1,0 +1,114 @@
+$ErrorActionPreference='Stop'
+if ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_ENVIRONMENT -ne 'github-hosted' -or $env:RUNNER_OS -ne 'Windows' -or $env:GITHUB_REPOSITORY -ne 'teydra/OpenAutark') { throw 'Hosted Windows fixture only.' }
+if ((Get-Process -Id $PID).SessionId -eq 0) { throw 'No interactive Windows desktop.' }
+Add-Type -AssemblyName System.Drawing, UIAutomationClient, UIAutomationTypes
+Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+public static class ShotWindow {
+  [StructLayout(LayoutKind.Sequential)] public struct Rect { public int Left,Top,Right,Bottom; }
+  [DllImport("user32.dll")] public static extern bool SetProcessDPIAware();
+  [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h,out Rect r);
+  [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
+  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+}
+"@
+[void][ShotWindow]::SetProcessDPIAware()
+$work=Join-Path $env:RUNNER_TEMP 'dotnetpro-first-install'
+$captures=Join-Path $work 'screens'
+New-Item -Path $captures -ItemType Directory | Out-Null
+$os=Get-CimInstance Win32_OperatingSystem
+@{edition=$os.Caption;version=$os.Version;build=$os.BuildNumber} | ConvertTo-Json | Set-Content "$captures/environment.json"
+$installer="$work/autark-windows-x64.exe"
+$exe="$env:LOCALAPPDATA\Programs\Autark\Autark.exe"
+$uri='https://github.com/teydra/OpenAutark/releases/download/v0.3.16/autark-windows-x64.exe'
+$expected='0639D88CD68F4266EAADB300687AE6E42FD708BC3F14B4D8FC8E4325F6C89026'
+$locations=@((Split-Path $exe),"$env:ProgramFiles\Autark","$env:APPDATA\Autark","$env:APPDATA\Autark Companies")
+if (@($locations | Where-Object {Test-Path -LiteralPath $_}).Count -ne 0 -or (Get-Process Autark -ErrorAction SilentlyContinue) -or (Get-Service AutarkDesktopBroker -ErrorAction SilentlyContinue)) { throw 'Runner is not a fresh Autark target.' }
+curl.exe --fail --silent --show-error --location $uri --output $installer
+if ($LASTEXITCODE) { throw 'Public download failed.' }
+$hash=(Get-FileHash -LiteralPath $installer).Hash
+$sig=Get-AuthenticodeSignature -FilePath $installer
+if ($hash -cne $expected -or $sig.Status -ne 'Valid' -or $sig.SignerCertificate.Issuer -notmatch 'Certum') { throw 'Public installer failed integrity or publisher check.' }
+@{url=$uri;sha256=$hash;authenticode=[string]$sig.Status;issuer=$sig.SignerCertificate.Issuer;timestamped=[bool]$sig.TimeStamperCertificate} | ConvertTo-Json | Set-Content "$captures/installer-verification.json"
+Write-Host 'Public release digest and Authenticode: PASS.'
+function WindowFor([string]$name) {
+  foreach($p in (Get-Process -Name $name -ErrorAction SilentlyContinue)) {
+    if ($p.MainWindowHandle -ne [IntPtr]::Zero) {return $p.MainWindowHandle}
+  }
+  [IntPtr]::Zero
+}
+function SaveWindow([IntPtr]$h,[string]$name) {
+  if ([ShotWindow]::GetForegroundWindow() -ne $h) {
+    [void][ShotWindow]::SetForegroundWindow($h)
+    Start-Sleep -Milliseconds 500
+  }
+  if ([ShotWindow]::GetForegroundWindow() -ne $h) { throw "Cannot confirm foreground window for $name" }
+  $r=[ShotWindow+Rect]::new()
+  if (![ShotWindow]::GetWindowRect($h,[ref]$r)) { throw "Cannot size window for $name" }
+  $w=$r.Right-$r.Left; $ht=$r.Bottom-$r.Top
+  if ($w -lt 150 -or $ht -lt 100 -or $w -gt 3000 -or $ht -gt 2000) { throw "Unexpected window dimensions for $name" }
+  $bmp=[Drawing.Bitmap]::new($w,$ht); $g=[Drawing.Graphics]::FromImage($bmp)
+  try {
+    $g.CopyFromScreen($r.Left,$r.Top,0,0,[Drawing.Size]::new($w,$ht))
+    $sample=@(foreach($x in 1..7){foreach($y in 1..7){$bmp.GetPixel([int](($w-1)*$x/8),[int](($ht-1)*$y/8)).ToArgb()}})
+    if (@($sample | Sort-Object -Unique).Count -le 2) { throw "Capture appears blank for $name" }
+    $bmp.Save((Join-Path $captures $name),[Drawing.Imaging.ImageFormat]::Png)
+  } finally { $g.Dispose(); $bmp.Dispose() }
+}
+function VisibleControl([IntPtr]$h,[string]$regex,$type) {
+  $win=[System.Windows.Automation.AutomationElement]::FromHandle($h)
+  $condition=[System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ControlTypeProperty,$type)
+  foreach ($item in $win.FindAll([System.Windows.Automation.TreeScope]::Descendants,$condition)) {
+    if ($item.Current.Name -match $regex -and $item.Current.IsEnabled -and !$item.Current.IsOffscreen) { return $item }
+  }
+}
+$setup=Start-Process -FilePath $installer -PassThru
+$shown=$false; $began=$false; $finished=$false; $next=0
+$deadline=[DateTime]::UtcNow.AddMinutes(8)
+do {
+  $hwnd=WindowFor 'autark-windows-x64'
+  if ($hwnd -ne [IntPtr]::Zero -and !$finished) {
+    if (!$shown) { SaveWindow $hwnd '01-setup.png'; $shown=$true }
+    $radio=[System.Windows.Automation.ControlType]::RadioButton
+    $choice=VisibleControl $hwnd '^(?:&?Only for me|&?Install for me)(?:$|\s|\()' $radio
+    if ($choice) {
+      $sel=$choice.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern)
+      $sel.Select()
+      if (!$sel.Current.IsSelected) { throw 'Could not confirm per-user scope.' }
+    } elseif (VisibleControl $hwnd '(?i)anyone|all users' $radio) { throw 'Scope page is present but per-user option not confirmed.' }
+    $action=VisibleControl $hwnd '^&?(Finish|Install|Next(?: >)?)$' ([System.Windows.Automation.ControlType]::Button)
+    if ($action) {
+      $label=$action.Current.Name.TrimStart('&')
+      if ($label -eq 'Finish') {
+        if (!$began) { throw 'Finish appeared before Install.' }
+        SaveWindow $hwnd '02-installation-complete.png'
+        $finished=$true
+      } elseif ($label -eq 'Install') {
+        if ($began) { throw 'Second Install action.' }; $began=$true
+      } else {
+        $next++; if ($began -or $next -gt 4) { throw 'Unexpected navigation state.' }
+      }
+      $action.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+      Start-Sleep -Seconds 2
+    }
+  }
+  Start-Sleep -Milliseconds 500
+  $setup.Refresh()
+} while (!$setup.HasExited -and [DateTime]::UtcNow -lt $deadline)
+if (!$setup.HasExited -or $setup.ExitCode -ne 0 -or !$finished) { throw 'Interactive setup did not finish successfully.' }
+if (!(Test-Path -LiteralPath $exe) -or (Test-Path "$env:ProgramFiles\Autark\Autark.exe")) { throw 'Expected a per-user install only.' }
+$info=[Diagnostics.FileVersionInfo]::GetVersionInfo($exe)
+$exeSign=Get-AuthenticodeSignature -FilePath $exe
+if ($info.ProductVersion -notmatch '^0\.3\.16(?:\.0)?$' -or $exeSign.Status -ne 'Valid') {throw 'Unexpected app version or signature.'}
+Write-Host 'Interactive setup and installed signed 0.3.16 per user: PASS.'
+if (!(Get-Process Autark -ErrorAction SilentlyContinue)) { Start-Process -FilePath $exe }
+$until=[DateTime]::UtcNow.AddSeconds(100)
+do { Start-Sleep -Milliseconds 500; $main=WindowFor 'Autark' } while ($main -eq [IntPtr]::Zero -and [DateTime]::UtcNow -lt $until)
+if ($main -eq [IntPtr]::Zero) { throw 'No visible Autark window.' }
+Start-Sleep -Seconds 3
+$owner=Get-Process -Id ([System.Windows.Automation.AutomationElement]::FromHandle($main).Current.ProcessId)
+if ($owner.Path -ine $exe) { throw 'Captured app is not the installed binary.' }
+SaveWindow $main '03-first-start.png'
+@{productVersion=$info.ProductVersion;appSignature=[string]$exeSign.Status;scope='per-user';visibleFirstWindow=$true;engineLoginPerformed=$false;fullAgentTurnTested=$false} | ConvertTo-Json | Set-Content "$captures/first-start.json"
+Write-Host 'Visible first app window: PASS. No real login or agent run.'

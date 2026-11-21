@@ -1,0 +1,29 @@
+name: dotnetpro public installer acceptance
+on:
+  push:
+    branches: [ci/dotnetpro-first-install-0316]
+permissions:
+  contents: read
+jobs:
+  first-install:
+    if: github.repository == 'teydra/OpenAutark'
+    runs-on: windows-2025
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Download and run the public signed installer interactively
+        shell: powershell
+        run: ./first-install.ps1
+      - name: Encrypt screenshots before transfer
+        if: always()
+        shell: pwsh
+        run: ./seal-captures.ps1
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: encrypted-dotnetpro-evidence
+          path: ${{ runner.temp }}/dotnetpro-screenshots.p7m
+          if-no-files-found: ignore
+          retention-days: 3
