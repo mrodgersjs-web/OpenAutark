@@ -11,6 +11,10 @@ public static class ShotWindow {
   [StructLayout(LayoutKind.Sequential)] public struct Rect { public int Left,Top,Right,Bottom; }
   [DllImport("user32.dll")] public static extern bool SetProcessDPIAware();
   [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h,out Rect r);
+  [DllImport("dwmapi.dll")] private static extern int DwmGetWindowAttribute(IntPtr h,int a,out Rect r,int size);
+  public static bool VisibleRect(IntPtr h,out Rect r) {
+    return DwmGetWindowAttribute(h,9,out r,Marshal.SizeOf(typeof(Rect)))==0 || GetWindowRect(h,out r);
+  }
   [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
   [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
   private delegate bool EnumProc(IntPtr hwnd, IntPtr arg);
@@ -78,7 +82,9 @@ $work=Join-Path $env:RUNNER_TEMP 'dotnetpro-first-install'
 $captures=Join-Path $work 'screens'
 New-Item -Path $captures -ItemType Directory | Out-Null
 $os=Get-CimInstance Win32_OperatingSystem
-@{edition=$os.Caption;version=$os.Version;build=$os.BuildNumber} | ConvertTo-Json | Set-Content "$captures/environment.json"
+$screenSizes=@([Windows.Forms.Screen]::AllScreens | ForEach-Object { "$($_.Bounds.Width)x$($_.Bounds.Height)" })
+Write-Host "Native desktop sizes: $($screenSizes -join ', ')"
+@{edition=$os.Caption;version=$os.Version;build=$os.BuildNumber;nativeDesktopSizes=$screenSizes} | ConvertTo-Json | Set-Content "$captures/environment.json"
 $installer="$work/autark-windows-x64.exe"
 $exe="$env:LOCALAPPDATA\Programs\Autark\Autark.exe"
 $uri='https://github.com/teydra/OpenAutark/releases/download/v0.3.16/autark-windows-x64.exe'
@@ -98,7 +104,7 @@ function WindowFor([string]$name) {
   }
   [IntPtr]::Zero
 }
-function SaveWindow([IntPtr]$h,[string]$name) {
+function SaveWindow([IntPtr]$h,[string]$name,[switch]$FullDesktop) {
   if ([ShotWindow]::GetForegroundWindow() -ne $h) {
     [void][ShotWindow]::SetForegroundWindow($h)
     Start-Sleep -Milliseconds 500
@@ -106,8 +112,15 @@ function SaveWindow([IntPtr]$h,[string]$name) {
   if ([ShotWindow]::GetForegroundWindow() -ne $h) { throw "Cannot confirm foreground window for $name" }
   $r=[ShotWindow+Rect]::new()
   if (![ShotWindow]::GetWindowRect($h,[ref]$r)) { throw "Cannot size window for $name" }
+  if ($FullDesktop) {
+    if (![ShotWindow]::VisibleRect($h,[ref]$r)) { throw 'Cannot confirm the visible frame.' }
+    $frame=[Drawing.Rectangle]::FromLTRB($r.Left,$r.Top,$r.Right,$r.Bottom)
+    $screen=[Windows.Forms.Screen]::AllScreens | Where-Object { $_.Bounds.Contains($frame) -and $_.Bounds.Width -ge 1920 -and $_.Bounds.Height -ge 1024 } | Select-Object -First 1
+    if (!$screen) { throw 'No single native desktop at print resolution contains the verified window.' }
+    $r.Left=$screen.Bounds.Left; $r.Top=$screen.Bounds.Top; $r.Right=$screen.Bounds.Right; $r.Bottom=$screen.Bounds.Bottom
+  }
   $w=$r.Right-$r.Left; $ht=$r.Bottom-$r.Top
-  if ($w -lt 150 -or $ht -lt 100 -or $w -gt 3000 -or $ht -gt 2000) { throw "Unexpected window dimensions for $name" }
+  if ($w -lt 150 -or $ht -lt 100 -or $w -gt 4096 -or $ht -gt 2160) { throw "Unexpected window dimensions for $name" }
   $bmp=[Drawing.Bitmap]::new($w,$ht); $g=[Drawing.Graphics]::FromImage($bmp)
   try {
     $g.CopyFromScreen($r.Left,$r.Top,0,0,[Drawing.Size]::new($w,$ht))
@@ -192,7 +205,7 @@ function FirstAppWindow {
     if ($p.Path -ine $exe -or $p.SessionId -ne (Get-Process -Id $PID).SessionId) { continue }
     foreach($h in [ShotWindow]::VisibleWindows([uint32]$p.Id)) {
       $r=[ShotWindow+Rect]::new()
-      if (![ShotWindow]::GetWindowRect($h,[ref]$r)) { continue }
+      if (![ShotWindow]::VisibleRect($h,[ref]$r)) { continue }
       $w=$r.Right-$r.Left; $ht=$r.Bottom-$r.Top
       if ($w -lt 600 -or $ht -lt 400 -or $w -gt 3000 -or $ht -gt 2000) { continue }
       $rect=[Drawing.Rectangle]::new($r.Left,$r.Top,$w,$ht)
@@ -217,6 +230,7 @@ $main=$nextWindow.Handle
 $owner=[uint32]0
 if (![ShotWindow]::GetWindowThreadProcessId($main,[ref]$owner) -or $owner -ne $nextWindow.Owner -or
     (Get-Process -Id $owner).Path -ine $exe) { throw 'Captured app is not the installed binary.' }
-SaveWindow $main '03-first-start.png'
+Write-Host 'Stable verified visible Autark window selected.'
+SaveWindow $main '03-first-start.png' -FullDesktop
 @{productVersion=$info.ProductVersion;appSignature=[string]$exeSign.Status;scope='per-user';visibleFirstWindow=$true;engineLoginPerformed=$false;fullAgentTurnTested=$false} | ConvertTo-Json | Set-Content "$captures/first-start.json"
 Write-Host 'Visible first app window: PASS. No real login or agent run.'
