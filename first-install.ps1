@@ -5,12 +5,49 @@ Add-Type -AssemblyName System.Drawing, UIAutomationClient, UIAutomationTypes
 Add-Type -TypeDefinition @"
 using System;
 using System.Runtime.InteropServices;
+using System.Collections.Generic;
+using System.Text;
 public static class ShotWindow {
   [StructLayout(LayoutKind.Sequential)] public struct Rect { public int Left,Top,Right,Bottom; }
   [DllImport("user32.dll")] public static extern bool SetProcessDPIAware();
   [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h,out Rect r);
   [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
   [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+  private delegate bool EnumProc(IntPtr hwnd, IntPtr arg);
+  [DllImport("user32.dll")] private static extern bool EnumChildWindows(IntPtr h, EnumProc callback, IntPtr arg);
+  [DllImport("user32.dll")] private static extern bool IsWindowVisible(IntPtr h);
+  [DllImport("user32.dll")] private static extern bool IsWindowEnabled(IntPtr h);
+  [DllImport("user32.dll", CharSet=CharSet.Unicode)] private static extern int GetClassName(IntPtr h,StringBuilder s,int n);
+  [DllImport("user32.dll", EntryPoint="SendMessageTimeoutW", CharSet=CharSet.Unicode)]
+  private static extern IntPtr ReadButton(IntPtr h,uint m,IntPtr n,StringBuilder s,uint flags,uint ms,out IntPtr result);
+  [DllImport("user32.dll", EntryPoint="SendMessageTimeoutW")]
+  private static extern IntPtr SendButton(IntPtr h,uint m,IntPtr w,IntPtr l,uint flags,uint ms,out IntPtr result);
+  [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h,out uint pid);
+  public class Button { public IntPtr Handle; public string Caption; }
+  public static Button[] Buttons(IntPtr parent) {
+    var buttons=new List<Button>();
+    EnumChildWindows(parent,delegate(IntPtr hwnd, IntPtr unused) {
+      if (!IsWindowVisible(hwnd) || !IsWindowEnabled(hwnd)) return true;
+      var name=new StringBuilder(32);
+      if (GetClassName(hwnd,name,name.Capacity)==0 || !String.Equals(name.ToString(),"Button",StringComparison.OrdinalIgnoreCase)) return true;
+      var text=new StringBuilder(256);
+      IntPtr result;
+      if (ReadButton(hwnd,0x000D,(IntPtr)text.Capacity,text,2,500,out result)!=IntPtr.Zero && result!=IntPtr.Zero)
+        buttons.Add(new Button { Handle=hwnd, Caption=text.ToString().Replace("&","").Trim() });
+      return true;
+    }, IntPtr.Zero);
+    return buttons.ToArray();
+  }
+  public static bool Checked(IntPtr h) {
+    IntPtr result;
+    return SendButton(h,0x00F0,IntPtr.Zero,IntPtr.Zero,2,700,out result)!=IntPtr.Zero && result==(IntPtr)1;
+  }
+  public static bool Click(IntPtr h) {
+    IntPtr result;
+    return IsWindowVisible(h) && IsWindowEnabled(h) &&
+      SendButton(h,0x00F5,IntPtr.Zero,IntPtr.Zero,2,1200,out result)!=IntPtr.Zero;
+  }
+
 }
 "@
 [void][ShotWindow]::SetProcessDPIAware()
@@ -56,30 +93,31 @@ function SaveWindow([IntPtr]$h,[string]$name) {
     $bmp.Save((Join-Path $captures $name),[Drawing.Imaging.ImageFormat]::Png)
   } finally { $g.Dispose(); $bmp.Dispose() }
 }
-function VisibleControl([IntPtr]$h,[string]$regex,$type) {
-  $win=[System.Windows.Automation.AutomationElement]::FromHandle($h)
-  $condition=[System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ControlTypeProperty,$type)
-  foreach ($item in $win.FindAll([System.Windows.Automation.TreeScope]::Descendants,$condition)) {
-    if ($item.Current.Name -match $regex -and $item.Current.IsEnabled -and !$item.Current.IsOffscreen) { return $item }
-  }
-}
 $setup=Start-Process -FilePath $installer -PassThru
-$shown=$false; $began=$false; $finished=$false; $next=0
+$shown=$false; $scope=$false; $began=$false; $finished=$false; $next=0
 $deadline=[DateTime]::UtcNow.AddMinutes(8)
+$lastProgress=[DateTime]::UtcNow
 do {
   $hwnd=WindowFor 'autark-windows-x64'
   if ($hwnd -ne [IntPtr]::Zero -and !$finished) {
-    if (!$shown) { SaveWindow $hwnd '01-setup.png'; $shown=$true }
-    $radio=[System.Windows.Automation.ControlType]::RadioButton
-    $choice=VisibleControl $hwnd '^(?:&?Only for me|&?Install for me)(?:$|\s|\()' $radio
-    if ($choice) {
-      $sel=$choice.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern)
-      $sel.Select()
-      if (!$sel.Current.IsSelected) { throw 'Could not confirm per-user scope.' }
-    } elseif (VisibleControl $hwnd '(?i)anyone|all users' $radio) { throw 'Scope page is present but per-user option not confirmed.' }
-    $action=VisibleControl $hwnd '^&?(Finish|Install|Next(?: >)?)$' ([System.Windows.Automation.ControlType]::Button)
-    if ($action) {
-      $label=$action.Current.Name.TrimStart('&')
+    $windowPid=[uint32]0
+    [void][ShotWindow]::GetWindowThreadProcessId($hwnd,[ref]$windowPid)
+    if ($windowPid -ne $setup.Id) { throw 'Wizard is not owned by the verified installer process.' }
+    if (!$shown) { SaveWindow $hwnd '01-setup.png'; $shown=$true; Write-Host 'Verified installer wizard visible.' }
+    $buttons=@([ShotWindow]::Buttons($hwnd))
+    $choice=@($buttons | Where-Object Caption -Match '^(?:Only for me|Install for me)(?:$|\s|\()')
+    $all=@($buttons | Where-Object Caption -Match '(?i)anyone|all users')
+    if ($choice.Count -or $all.Count) {
+      if ($choice.Count -ne 1 -or $all.Count -ne 1) { throw 'Cannot identify both install scopes.' }
+      if (![ShotWindow]::Checked($choice[0].Handle) -or [ShotWindow]::Checked($all[0].Handle)) { throw 'Default per-user scope was not confirmed; do not proceed.' }
+      $scope=$true
+    }
+    $action=@($buttons | Where-Object Caption -Match '^(Finish|Install|Next(?:\s*>){0,2})$')
+    if ($action.Count -gt 1) { throw 'Ambiguous wizard buttons.' }
+    if ($action.Count -eq 1) {
+      if ([ShotWindow]::GetForegroundWindow() -ne $hwnd) { throw 'Installer lost foreground; do not click.' }
+      $label=$action[0].Caption
+      if (!$scope) { throw 'Cannot proceed without explicit per-user scope.' }
       if ($label -eq 'Finish') {
         if (!$began) { throw 'Finish appeared before Install.' }
         SaveWindow $hwnd '02-installation-complete.png'
@@ -89,14 +127,19 @@ do {
       } else {
         $next++; if ($began -or $next -gt 4) { throw 'Unexpected navigation state.' }
       }
-      $action.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+      if (![ShotWindow]::Click($action[0].Handle)) { throw 'Confirmed wizard action did not respond.' }
+      Write-Host "Wizard action: $label"
+      $lastProgress=[DateTime]::UtcNow
       Start-Sleep -Seconds 2
     }
+  }
+  if (!$began -and ([DateTime]::UtcNow-$lastProgress).TotalSeconds -gt 35) {
+    throw "No recognized wizard action. Window shown=$shown; scope confirmed=$scope; Next count=$next."
   }
   Start-Sleep -Milliseconds 500
   $setup.Refresh()
 } while (!$setup.HasExited -and [DateTime]::UtcNow -lt $deadline)
-if (!$setup.HasExited -or $setup.ExitCode -ne 0 -or !$finished) { throw 'Interactive setup did not finish successfully.' }
+if (!$setup.HasExited -or $setup.ExitCode -ne 0 -or !$finished) { throw "Interactive setup did not finish successfully. Install=$began; Finish=$finished; Exited=$($setup.HasExited)." }
 if (!(Test-Path -LiteralPath $exe) -or (Test-Path "$env:ProgramFiles\Autark\Autark.exe")) { throw 'Expected a per-user install only.' }
 $info=[Diagnostics.FileVersionInfo]::GetVersionInfo($exe)
 $exeSign=Get-AuthenticodeSignature -FilePath $exe
