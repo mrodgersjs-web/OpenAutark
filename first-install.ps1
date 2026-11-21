@@ -119,7 +119,16 @@ do {
       $label=$action[0].Caption
       if (!$scope) { throw 'Cannot proceed without explicit per-user scope.' }
       if ($label -eq 'Finish') {
-        if (!$began) { throw 'Finish appeared before Install.' }
+        # This signed installer can start copying on the second Next, without an Install-labelled button.
+        if (!$began -and $next -lt 2) { throw 'Unexpected finish state.' }
+        if (!(Test-Path -LiteralPath $exe) -or (Test-Path "$env:ProgramFiles\Autark\Autark.exe")) {
+          throw 'Finish page has no confirmed per-user program.'
+        }
+        $finishVersion=[Diagnostics.FileVersionInfo]::GetVersionInfo($exe).ProductVersion
+        if ($finishVersion -notmatch '^0\.3\.16(?:\.0)?$' -or (Get-AuthenticodeSignature -LiteralPath $exe).Status -ne 'Valid') {
+          throw 'Finish page has no verified installed 0.3.16.'
+        }
+        $began=$true
         SaveWindow $hwnd '02-installation-complete.png'
         $finished=$true
       } elseif ($label -eq 'Install') {
