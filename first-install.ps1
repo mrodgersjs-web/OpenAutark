@@ -1,7 +1,7 @@
 $ErrorActionPreference='Stop'
 if ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_ENVIRONMENT -ne 'github-hosted' -or $env:RUNNER_OS -ne 'Windows' -or $env:GITHUB_REPOSITORY -ne 'teydra/OpenAutark') { throw 'Hosted Windows fixture only.' }
 if ((Get-Process -Id $PID).SessionId -eq 0) { throw 'No interactive Windows desktop.' }
-Add-Type -AssemblyName System.Drawing, UIAutomationClient, UIAutomationTypes
+Add-Type -AssemblyName System.Drawing, System.Windows.Forms, UIAutomationClient, UIAutomationTypes
 Add-Type -TypeDefinition @"
 using System;
 using System.Runtime.InteropServices;
@@ -14,6 +14,18 @@ public static class ShotWindow {
   [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
   [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
   private delegate bool EnumProc(IntPtr hwnd, IntPtr arg);
+  [DllImport("user32.dll")] private static extern bool EnumWindows(EnumProc callback, IntPtr arg);
+  [DllImport("user32.dll")] private static extern bool IsIconic(IntPtr h);
+  public static IntPtr[] VisibleWindows(uint expectedPid) {
+    var windows = new List<IntPtr>();
+    EnumWindows(delegate(IntPtr h, IntPtr unused) {
+      uint pid;
+      if (IsWindowVisible(h) && !IsIconic(h) &&
+          GetWindowThreadProcessId(h, out pid)!=0 && pid==expectedPid) windows.Add(h);
+      return true;
+    }, IntPtr.Zero);
+    return windows.ToArray();
+  }
   [DllImport("user32.dll")] private static extern bool EnumChildWindows(IntPtr h, EnumProc callback, IntPtr arg);
   [DllImport("user32.dll")] private static extern bool IsWindowVisible(IntPtr h);
   [DllImport("user32.dll")] private static extern bool IsWindowEnabled(IntPtr h);
@@ -174,12 +186,37 @@ $exeSign=Get-AuthenticodeSignature -FilePath $exe
 if ($info.ProductVersion -notmatch '^0\.3\.16(?:\.0)?$' -or $exeSign.Status -ne 'Valid') {throw 'Unexpected app version or signature.'}
 Write-Host 'Interactive setup and installed signed 0.3.16 per user: PASS.'
 if (!(Get-Process Autark -ErrorAction SilentlyContinue)) { Start-Process -FilePath $exe }
+function FirstAppWindow {
+  $foreground=[ShotWindow]::GetForegroundWindow()
+  $found=foreach($p in (Get-Process -Name Autark -ErrorAction SilentlyContinue)) {
+    if ($p.Path -ine $exe -or $p.SessionId -ne (Get-Process -Id $PID).SessionId) { continue }
+    foreach($h in [ShotWindow]::VisibleWindows([uint32]$p.Id)) {
+      $r=[ShotWindow+Rect]::new()
+      if (![ShotWindow]::GetWindowRect($h,[ref]$r)) { continue }
+      $w=$r.Right-$r.Left; $ht=$r.Bottom-$r.Top
+      if ($w -lt 600 -or $ht -lt 400 -or $w -gt 3000 -or $ht -gt 2000) { continue }
+      $rect=[Drawing.Rectangle]::new($r.Left,$r.Top,$w,$ht)
+      if (-not ([Windows.Forms.Screen]::AllScreens | Where-Object { $_.Bounds.Contains($rect) } | Select-Object -First 1)) { continue }
+      [pscustomobject]@{Handle=$h;Owner=$p.Id;Area=$w*$ht;Foreground=($h -eq $foreground);Rect=$rect}
+    }
+  }
+  $found | Sort-Object -Property Foreground,Area -Descending | Select-Object -First 1
+}
 $until=[DateTime]::UtcNow.AddSeconds(100)
-do { Start-Sleep -Milliseconds 500; $main=WindowFor 'Autark' } while ($main -eq [IntPtr]::Zero -and [DateTime]::UtcNow -lt $until)
-if ($main -eq [IntPtr]::Zero) { throw 'No visible Autark window.' }
-Start-Sleep -Seconds 3
-$owner=Get-Process -Id ([System.Windows.Automation.AutomationElement]::FromHandle($main).Current.ProcessId)
-if ($owner.Path -ine $exe) { throw 'Captured app is not the installed binary.' }
+$previous=$null
+do {
+  Start-Sleep -Milliseconds 500
+  $nextWindow=FirstAppWindow
+  if ($previous -and $nextWindow -and $nextWindow.Handle -eq $previous.Handle -and
+      $nextWindow.Owner -eq $previous.Owner -and $nextWindow.Rect -eq $previous.Rect) { break }
+  $previous=$nextWindow
+  $nextWindow=$null
+} while ([DateTime]::UtcNow -lt $until)
+if (!$nextWindow) { throw 'No stable, visible, on-screen Autark window of the verified installation.' }
+$main=$nextWindow.Handle
+$owner=[uint32]0
+if (![ShotWindow]::GetWindowThreadProcessId($main,[ref]$owner) -or $owner -ne $nextWindow.Owner -or
+    (Get-Process -Id $owner).Path -ine $exe) { throw 'Captured app is not the installed binary.' }
 SaveWindow $main '03-first-start.png'
 @{productVersion=$info.ProductVersion;appSignature=[string]$exeSign.Status;scope='per-user';visibleFirstWindow=$true;engineLoginPerformed=$false;fullAgentTurnTested=$false} | ConvertTo-Json | Set-Content "$captures/first-start.json"
 Write-Host 'Visible first app window: PASS. No real login or agent run.'
