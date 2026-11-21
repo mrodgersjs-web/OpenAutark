@@ -23,6 +23,17 @@ public static class ShotWindow {
   [DllImport("user32.dll", EntryPoint="SendMessageTimeoutW")]
   private static extern IntPtr SendButton(IntPtr h,uint m,IntPtr w,IntPtr l,uint flags,uint ms,out IntPtr result);
   [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h,out uint pid);
+  [DllImport("user32.dll")] private static extern bool IsChild(IntPtr parent,IntPtr child);
+  [DllImport("user32.dll", EntryPoint="PostMessageW", SetLastError=true)]
+  private static extern bool PostButton(IntPtr h,uint m,IntPtr w,IntPtr l);
+  public static bool QueueFinish(IntPtr parent,IntPtr button,uint expectedPid) {
+    uint pp,bp;
+    return GetForegroundWindow()==parent && IsChild(parent,button)
+      && GetWindowThreadProcessId(parent,out pp)!=0 && pp==expectedPid
+      && GetWindowThreadProcessId(button,out bp)!=0 && bp==expectedPid
+      && IsWindowVisible(button) && IsWindowEnabled(button)
+      && PostButton(button,0x00F5,IntPtr.Zero,IntPtr.Zero);
+  }
   public class Button { public IntPtr Handle; public string Caption; }
   public static Button[] Buttons(IntPtr parent) {
     var buttons=new List<Button>();
@@ -130,7 +141,15 @@ do {
         }
         $began=$true
         SaveWindow $hwnd '02-installation-complete.png'
+        # BM_CLICK can destroy the wizard before SendMessageTimeout returns. Queue the
+        # single Finish action; the actual verified installer's exit is the confirmation.
+        if (![ShotWindow]::QueueFinish($hwnd,$action[0].Handle,[uint32]$setup.Id)) {
+          throw 'Could not queue Finish on the verified foreground wizard.'
+        }
         $finished=$true
+        Write-Host 'Finish queued on the verified wizard; awaiting installer exit.'
+        if (!$setup.WaitForExit(75000)) { throw 'Verified installer did not exit after Finish.' }
+        break
       } elseif ($label -eq 'Install') {
         if ($began) { throw 'Second Install action.' }; $began=$true
       } else {
