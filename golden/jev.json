@@ -1,11 +1,11 @@
 {
   "source": "hosted",
   "rubric": "done.claim",
-  "subject": "docs:openautark-os-setup@f0f0a4ebdf53",
+  "subject": "docs:openautark-os-d1-closed@25c3d44af479",
   "verdict": "PASS",
   "model": "jev-1.14.0",
-  "decision_id": 339049,
+  "decision_id": 339768,
   "advisory": true,
-  "at": "2026-11-23T20:00:00Z",
-  "note": "advisory PASS: informs, never permits. Recorded by the run, not self-certified."
+  "at": "2026-11-23T22:10:00Z",
+  "note": "advisory PASS on the D1-closed update; informs, never permits"
 }

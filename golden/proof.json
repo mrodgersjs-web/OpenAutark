@@ -1,5 +1,5 @@
 {
-  "run_id": "2026-11-23T19:57:19Z-governance",
+  "run_id": "2026-11-23T23:10:40Z-governance",
   "task": "openautark-os:governance-verification",
   "lane": "RIG",
   "constraints": {
@@ -22,9 +22,9 @@
       "name": "yaml_lint",
       "command": "/Users/rig128gb/.aside/runtime/python/venv/bin/python scripts/yaml_lint.py",
       "exit": 0,
-      "output_sha256": "d1c44f7dc6281b3559527f76de4a0b16a1bcfaf97a58eec82536f38026cc43c6",
+      "output_sha256": "461a4a36b604c90b0c74889be6f74cf47e8452abb5e8588bd524a19f7478d262",
       "output_tail": [
-        "  \"checked\": 40,",
+        "  \"checked\": 38,",
         "  \"errors\": []",
         "}"
       ]
@@ -34,7 +34,7 @@
       "name": "secret_scan",
       "command": "/Users/rig128gb/.aside/runtime/python/venv/bin/python scripts/secret_scan.py",
       "exit": 0,
-      "output_sha256": "4e72b9bb9c204a428c9f90d3293be5884716a1720cec1aa593188828730df537",
+      "output_sha256": "5c91fd435aff7e37e59a2db0107192a49145efe7af49e058efef65e3160097d3",
       "output_tail": [
         "  \"upstream_reference_findings\": 22,",
         "  \"note\": \"upstream fixtures and upstream secret-detection tests contain synthetic key shapes by design; they are not scanned as this repository's leaks\"",
@@ -58,11 +58,11 @@
       "name": "ownership_tests",
       "command": "node --test tests/check-owners.test.mjs",
       "exit": 0,
-      "output_sha256": "4cd0f434b75ef5afbcffecf00d711b36b618d26814fd16ed8544e1c8a90c70fd",
+      "output_sha256": "5ac0d469ad203b97d28dc408feace2a85a89fe077debac96538e1307cd000e41",
       "output_tail": [
         "\u2139 skipped 0",
         "\u2139 todo 0",
-        "\u2139 duration_ms 53.034583"
+        "\u2139 duration_ms 65.725584"
       ]
     },
     {
@@ -70,18 +70,18 @@
       "name": "contract_tests",
       "command": "/Users/rig128gb/.aside/runtime/python/venv/bin/python -m pytest -q tests",
       "exit": 0,
-      "output_sha256": "7807d0a758209d17bbb0ebfe5258b2e052cffb829e3e1046da5a6faae90dcb3e",
+      "output_sha256": "e9e74f858424c916f5a85e2343e672052211bef02ebbc9e2b7575dedc4a24ab7",
       "output_tail": [
-        "..............                                                           [100%]",
-        "14 passed in 0.28s"
+        "..................                                                       [100%]",
+        "18 passed in 0.45s"
       ]
     },
     {
       "kind": "command",
       "name": "install_doctor",
       "command": "/Users/rig128gb/.aside/runtime/python/venv/bin/python scripts/doctor.py",
-      "exit": 1,
-      "output_sha256": "d5043cae6f7028936ffbf72f5b27ed6edd2db27448223036d4dcb6963db07a79",
+      "exit": 0,
+      "output_sha256": "96ba073b387556f9c24b8c73d4bbf7497bc4d819260b4ff54208b04fe5dcf1e3",
       "output_tail": [
         "    }",
         "  ]",
@@ -89,23 +89,18 @@
       ]
     }
   ],
-  "gates": [
-    {
-      "id": "raw_credentials",
-      "verdict": "HOLD"
-    }
-  ],
+  "gates": [],
   "verification": {
     "independent": false,
     "jev": {
       "source": "hosted",
-      "subject": "docs:openautark-os-setup@f0f0a4ebdf53",
+      "subject": "docs:openautark-os-d1-closed@25c3d44af479",
       "verdict": "PASS",
       "rubric": "done.claim",
       "model": "jev-1.14.0",
-      "decision_id": 339049
+      "decision_id": 339768
     },
     "note": "verdict read from golden/jev.json; an advisory PASS informs and never permits"
   },
-  "halt_reason": "install_doctor exited 1"
+  "halt_reason": null
 }

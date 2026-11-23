@@ -42,17 +42,17 @@ python3 scripts/proof.py  # the same, wrapped in a proof packet
 | Ownership tests (9) | pass |
 | Contract tests (14) | pass |
 | Blueprint verify (9 nodes) | pass, 0 errors, 0 warnings |
-| Live install doctor | **HOLD: one real finding** (below) |
+| Live install doctor | pass, zero failures (the one credential finding was closed 2026-11-23) |
 | Jev `done.claim` | advisory PASS, decision 339049, subject `docs:openautark-os-setup@f0f0a4ebdf53` |
 | Commit | **blocked**: this root is not a registered writable root |
 
 ## Open items
 
-1. **Raw provider credential (F7).** `settings.json` holds a literal bearer token at
-   `providers.aside-gemini.models[google-antigravity/gemini-4-carbon].headers.Authorization` while every other
-   credential is a `secret://` reference. Fix: store it in Settings › Secrets, set that header to
-   `Bearer secret://<id>` (the app's own contract, `apps/desktop/src/ui/settings/apps-files.ts:88`), then rotate the
-   exposed token. It is account material, so it waits for Mike.
+1. **Raw provider credential (F7): closed 2026-11-23.** The literal header was removed from
+   `providers.aside-gemini.models[google-antigravity/gemini-4-carbon]`; that model keeps its own `baseUrl` and the
+   provider keeps its `secret://` key. The value was `~/.omp/auth-gateway.token`, the seat-gateway key all 25 providers
+   are bootstrapped from, so rotating it would break every lane until each secret is re-pasted in Settings › Secrets.
+   That rotation is the Principal's; the mirror's `routes.json` and the token file are both `600`.
 2. **Commits are blocked by the estate's repo guard.** `rig-repo-guard check /Users/rig128gb/Developer/autark-os`
    answers `BLOCK: path is outside every registered writable root`. The registry
    (`Developer/rig-intelligence/registry/workstation-repositories.json`) is at its 196 writable ceiling, so adding
