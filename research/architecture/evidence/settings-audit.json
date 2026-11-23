@@ -1,0 +1,73 @@
+{
+  "settings_sections": [
+    "$schema",
+    "calendar",
+    "day",
+    "devices",
+    "feedback",
+    "library",
+    "lifecycle",
+    "notifications",
+    "onboarding",
+    "preferences",
+    "profile",
+    "providers",
+    "pwa",
+    "routing",
+    "voice"
+  ],
+  "routing": {
+    "work": "litellm-tiers-rig256gb-gateway:rig-auto-balanced",
+    "decision": "typesafe:jev-latest",
+    "voice": "auto",
+    "stt": "auto",
+    "tts": "auto",
+    "image": "auto",
+    "video": "auto",
+    "music": "auto",
+    "sound": "auto",
+    "embeddings": "local-embeddings:qwen3-embedding:0.6b",
+    "costMode": "balanced"
+  },
+  "routing_flags": {
+    "allowPaidFallback": false
+  },
+  "provider_count": 25,
+  "providers": [
+    "ar-rig-local-compatibility-pilot",
+    "aside-blackwell-gpu0",
+    "aside-blackwell-gpu1",
+    "aside-blackwell-gpu2",
+    "aside-chatgpt-pool",
+    "aside-claude-pool",
+    "aside-deepseek",
+    "aside-gemini",
+    "aside-inception",
+    "aside-kimi-code",
+    "aside-mimo",
+    "aside-minimax",
+    "aside-nvidia",
+    "aside-ollama",
+    "aside-openrouter",
+    "aside-rig-28gb-qwen35",
+    "aside-rig-auto-router",
+    "aside-rig-fleet-blackwell",
+    "aside-rig36gb-ornith",
+    "aside-xai",
+    "aside-zai",
+    "fal",
+    "litellm-tiers-rig256gb-gateway",
+    "local-embeddings",
+    "typesafe"
+  ],
+  "pc_access": "whole",
+  "security_block_present": false,
+  "library_publish": false,
+  "quiet_hours": {
+    "from": "21:00",
+    "to": "07:00"
+  },
+  "raw_credential_locations": [
+    "providers.aside-gemini.models[google-antigravity/gemini-4-carbon].headers.Authorization"
+  ]
+}

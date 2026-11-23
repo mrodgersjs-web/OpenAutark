@@ -1,0 +1,56 @@
+{
+  "port": 47811,
+  "pid": 13780,
+  "uses": [
+    {
+      "use": "work",
+      "stored": "litellm-tiers-rig256gb-gateway:rig-auto-balanced",
+      "state": "ready"
+    },
+    {
+      "use": "decision",
+      "stored": "typesafe:jev-latest",
+      "state": "ready"
+    },
+    {
+      "use": "voice",
+      "stored": "auto",
+      "state": "ready"
+    },
+    {
+      "use": "stt",
+      "stored": "auto",
+      "state": "ready"
+    },
+    {
+      "use": "tts",
+      "stored": "auto",
+      "state": "ready"
+    },
+    {
+      "use": "image",
+      "stored": "auto",
+      "state": "ready"
+    },
+    {
+      "use": "video",
+      "stored": "auto",
+      "state": "off"
+    },
+    {
+      "use": "music",
+      "stored": "auto",
+      "state": "ready"
+    },
+    {
+      "use": "sound",
+      "stored": "auto",
+      "state": "ready"
+    },
+    {
+      "use": "embeddings",
+      "stored": "local-embeddings:qwen3-embedding:0.6b",
+      "state": "ready"
+    }
+  ]
+}
