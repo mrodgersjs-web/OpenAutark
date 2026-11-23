@@ -1,0 +1,89 @@
+{
+  "version": 1,
+  "principal": {
+    "name": "principal",
+    "github_login": "mrodgersjs-web"
+  },
+  "rules": [
+    {
+      "owner": "principal",
+      "paths": [
+        "AGENTS.md",
+        "SETUP.md",
+        "CLAUDE.md",
+        "GEMINI.md",
+        "HARNESS.md",
+        "OWNERS.yaml",
+        "floors.yaml",
+        "package.json",
+        "routes.yaml",
+        ".github/**"
+      ]
+    },
+    {
+      "owner": "control-plane",
+      "paths": [
+        "harness/**",
+        "tests/**",
+        "scripts/*.py",
+        "scripts/*.sh",
+        "scripts/*.mjs",
+        "research/architecture/**"
+      ]
+    },
+    {
+      "owner": "architecture-notes",
+      "paths": [
+        "docs/ARCHITECTURE-NOTES.md"
+      ]
+    },
+    {
+      "owner": "architect-blueprint",
+      "paths": [
+        "blueprints/**"
+      ]
+    },
+    {
+      "owner": "verifier",
+      "paths": [
+        "golden/**"
+      ]
+    },
+    {
+      "owner": "orchestrator-layer",
+      "paths": [
+        "autark-os/**"
+      ]
+    },
+    {
+      "owner": "research-exemplars",
+      "paths": [
+        "research/what-great-looks-like/**"
+      ]
+    },
+    {
+      "owner": "upstream-frozen",
+      "github_actors": [
+        "teydra"
+      ],
+      "paths": [
+        "apps/**",
+        "services/**",
+        "library/**",
+        "scripts/desktop-release/**",
+        "scripts/model-priors/**",
+        "docs/ARCHITECTURE.md",
+        "docs/EXTERNAL_PROTOCOL.md",
+        "docs/screenshots/**",
+        "README.md",
+        "LICENSE",
+        "LICENSE.md",
+        "CONTRIBUTING.md",
+        "SECURITY.md",
+        "THIRD_PARTY_NOTICE.md",
+        ".gitattributes",
+        ".gitignore"
+      ]
+    }
+  ]
+}

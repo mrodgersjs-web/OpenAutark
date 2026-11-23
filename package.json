@@ -1,0 +1,20 @@
+{
+  "name": "openautark-os",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Governed operating layer over OpenAutark: owner map, floors F1-F8, H=(E,T,C,S,L,V) harness, read-only install doctor",
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "owners:check": "node scripts/check-owners.mjs",
+    "gates": "python3 harness/gates.py selftest",
+    "pytest": "python3 -m pytest -q tests",
+    "doctor": "python3 scripts/doctor.py",
+    "verify": "npm run yaml:lint && npm run secret:scan && npm run gates && npm test && npm run pytest && npm run doctor",
+    "yaml:lint": "python3 scripts/yaml_lint.py",
+    "secret:scan": "python3 scripts/secret_scan.py"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

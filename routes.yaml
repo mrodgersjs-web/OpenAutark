@@ -1,0 +1,69 @@
+# Every governed surface of the OpenAutark OS layer. `scripts/doctor.py` asserts each route carries a gate
+# command, the floors it enforces and its evidence kind; a route without them is a configuration failure, not a
+# warning. `expected_routes` guards against a route being dropped silently.
+version: 1
+expected_routes: 9
+routes:
+  control_plane:
+    surface: repository contract files
+    owner: principal
+    gate_command: node scripts/check-owners.mjs --actor mrodgersjs-web -- ./AGENTS.md
+    floors: [F1, F2, F3]
+    evidence: command
+    mode: read_only
+  install_doctor:
+    surface: live Autark install (settings, runtime, models, agents, memory)
+    owner: control-plane
+    gate_command: python3 scripts/doctor.py
+    floors: [F4, F5, F7]
+    evidence: command
+    mode: read_only
+  model_routing:
+    surface: settings.json routing + providers
+    owner: control-plane
+    gate_command: python3 harness/gates.py check --check routing_declared --settings "$AUTARK_DATA/settings.json"
+    floors: [F5, F3]
+    evidence: command
+    mode: read_only
+  outward_boundary:
+    surface: messages, email, social, publish, spend
+    owner: principal
+    gate_command: python3 harness/gates.py check --check requires_gate_d --payload payload.json
+    floors: [F1, F8]
+    evidence: approval_record
+    mode: gate_d
+  agent_layer:
+    surface: autark-os/ agents, skills, memory in the app's own file format
+    owner: orchestrator-layer
+    gate_command: python3 harness/gates.py check --check external_text --text autark-os/README.md
+    floors: [F6, F2]
+    evidence: file
+    mode: additive_data
+  library_sharing:
+    surface: library.publish setting and library/ PRs
+    owner: principal
+    gate_command: python3 harness/gates.py check --check external_text --text library/README.md
+    floors: [F6, F7]
+    evidence: file
+    mode: read_only
+  secrets:
+    surface: settings providers, secrets catalog, repository scan
+    owner: control-plane
+    gate_command: python3 scripts/secret_scan.py
+    floors: [F7]
+    evidence: command
+    mode: read_only
+  quality_judge:
+    surface: hosted Jev text and image verdicts
+    owner: control-plane
+    gate_command: python3 harness/gates.py check --check jev --verdict verdict.json
+    floors: [F3, F2]
+    evidence: jev_verdict
+    mode: fail_closed
+  architecture_scan:
+    surface: seniorarchitect map + S.U.P.E.R scorecard
+    owner: control-plane
+    gate_command: python3 scripts/yaml_lint.py
+    floors: [F2]
+    evidence: file
+    mode: scan
