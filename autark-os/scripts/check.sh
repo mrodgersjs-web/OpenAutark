@@ -123,6 +123,61 @@ check_docs() {
   fi
 }
 
+check_sources() {
+  node -e '
+    const fs = require("fs"), path = require("path");
+    const L = process.argv[1];
+    const cat = JSON.parse(fs.readFileSync(path.join(L, "sources/catalog.json"), "utf8"));
+    const md = fs.readFileSync(path.join(L, "sources/catalog.md"), "utf8");
+    const allow = new Set(["MIT", "Apache-2.0", "BSD-2-Clause", "BSD-3-Clause", "ISC"]);
+    const bad = [];
+    const ids = new Set();
+    if (!Array.isArray(cat.packs)) { console.log("FAIL sources: no packs array"); process.exit(1); }
+    for (const p of cat.packs) {
+      const at = "pack " + (p.id || "?");
+      if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(p.id || "")) bad.push(at + ": bad id");
+      if (ids.has(p.id)) bad.push(at + ": duplicate id");
+      ids.add(p.id);
+      if (!/^[\w.-]+\/[\w.-]+$/.test(p.repo || "")) bad.push(at + ": bad repo slug");
+      if (!Number.isInteger(p.stars) || p.stars <= 0) bad.push(at + ": stars not an integer");
+      for (const k of ["license", "mode", "take", "why", "risk", "license_note"]) if (!p[k]) bad.push(at + ": missing " + k);
+      if (!["vendor", "reference"].includes(p.mode)) bad.push(at + ": mode must be vendor or reference");
+      if (p.mode === "vendor" && !allow.has(p.license)) bad.push(at + ": vendor mode with license " + p.license);
+      if (!Array.isArray(p.owners) || !p.owners.length) bad.push(at + ": no owners");
+      for (const o of p.owners || []) if (!fs.existsSync(path.join(L, "agents", o + ".md"))) bad.push(at + ": owner agent " + o + " does not exist");
+      if (!md.includes("| " + p.id + " |")) bad.push(at + ": missing row in sources/catalog.md");
+    }
+    if (bad.length) { bad.forEach((b) => console.log("FAIL sources: " + b)); process.exit(1); }
+    const v = cat.packs.filter((p) => p.mode === "vendor").length;
+    console.log("ok   sources: " + cat.packs.length + " packs (" + v + " vendor, " + (cat.packs.length - v) + " reference), ids unique, owners resolve, catalog.md in sync");
+  ' "$L" || FAIL=1
+
+  # A pack that carries a symlink must be refused, not followed.
+  tmp2=$(mktemp -d)
+  cp -R "$L/tests/fixtures/pack" "$tmp2/sym"
+  ln -s /etc/hosts "$tmp2/sym/sample/link-out" 2>/dev/null || true
+  if [ -L "$tmp2/sym/sample/link-out" ]; then
+    if AUTARK_WORKSPACE="$tmp2/ws" sh "$L/scripts/add-pack.sh" superpowers --from "$tmp2/sym" --write >/dev/null 2>&1; then
+      fail sources "a pack containing a symlink was installed"
+    else
+      ok sources "a pack containing a symlink is refused"
+    fi
+  fi
+  rm -rf "$tmp2"
+
+  # Behaviour, not shape: install one skill from the fixture pack and read the result back.
+  tmp=$(mktemp -d)
+  if AUTARK_WORKSPACE="$tmp/ws" sh "$L/scripts/add-pack.sh" superpowers --from "$L/tests/fixtures/pack" --write --only sample >/dev/null 2>&1 \
+     && [ -f "$tmp/ws/skills/superpowers--sample/SKILL.md" ] \
+     && grep -q '^name: superpowers--sample$' "$tmp/ws/skills/superpowers--sample/SKILL.md" \
+     && grep -q 'superpowers--sample' "$tmp/ws/autark-os.manifest"; then
+    ok sources "fixture install: copied, renamed to <pack>--<name>, recorded in the manifest"
+  else
+    fail sources "fixture install did not produce the expected file, name or manifest line"
+  fi
+  rm -rf "$tmp"
+}
+
 check_install() {
   tmp=$(mktemp -d)
   mkdir -p "$tmp/data"
@@ -146,9 +201,10 @@ case "${1:-all}" in
   skills) check_skills ;;
   router) check_router ;;
   docs) check_docs ;;
+  sources) check_sources ;;
   install) check_install ;;
   all)
-    check_layout; check_agents; check_skills; check_router; check_docs; check_install
+    check_layout; check_agents; check_skills; check_router; check_docs; check_sources; check_install
     ;;
   *) echo "unknown check: $1" >&2; exit 2 ;;
 esac

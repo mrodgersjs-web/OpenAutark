@@ -36,15 +36,8 @@ if [ -n "${AUTARK_DATA:-}" ]; then DATA="$AUTARK_DATA"
 elif [ "$(uname -s)" = "Darwin" ]; then DATA="$HOME/Library/Application Support/Autark"
 elif [ -n "${APPDATA:-}" ]; then DATA="$APPDATA/Autark"
 else DATA="${XDG_CONFIG_HOME:-$HOME/.config}/Autark"; fi
-if [ -n "${AUTARK_WORKSPACE:-}" ]; then
-  WORKSPACE="$AUTARK_WORKSPACE"
-elif [ -n "${AUTARK_DATA:-}" ]; then
-  # A company chosen with AUTARK_DATA keeps its own workspace (<data>/workspace), not the first
-  # company's ~/Workforce - the app's own rule for companies after the first.
-  WORKSPACE="$DATA/workspace"
-else
-  WORKSPACE="$HOME/Workforce"
-fi
+. "$HERE/lib.sh"
+WORKSPACE=$(resolve_workspace "$DATA")
 MANIFEST="$DATA/autark-os.manifest"
 WF="$DATA/bin/wf"
 say() { printf '%s\n' "$*"; }
@@ -61,7 +54,7 @@ if [ "$UNINSTALL" = 1 ]; then
       sum=$a; path=$b
       case "$path" in "$DATA"/*|"$WORKSPACE"/*) ;; *) say "  skipped (outside roots): $path"; continue ;; esac
       if [ ! -e "$path" ]; then say "  gone already: $path"; continue; fi
-      now=$(shasum -a 256 "$path" | awk '{print $1}')
+      now=$(sha256 "$path")
       if [ "$now" = "$sum" ]; then
         rm -f "$path"; say "  removed $path"
       else
@@ -126,7 +119,7 @@ if [ "$AGENTS_ONLY" = 0 ]; then
     if [ -e "$target" ]; then say "exists, skipped: $target"; continue; fi
     mkdir "$target"
     cp "$d/SKILL.md" "$target/SKILL.md"
-    record file "$(shasum -a 256 "$target/SKILL.md" | awk '{print $1}')" "$target/SKILL.md"
+    record file "$(sha256 "$target/SKILL.md")" "$target/SKILL.md"
     say "skill: $name"
   done
 fi
@@ -185,7 +178,7 @@ if [ "$SKILLS_ONLY" = 0 ]; then
     (cd "$L/memory" && find . -type f) | while IFS= read -r rel; do
       mkdir -p "$memdir/$(dirname "$rel")"
       cp "$L/memory/$rel" "$memdir/$rel"
-      record file "$(shasum -a 256 "$memdir/$rel" | awk '{print $1}')" "$memdir/$rel"
+      record file "$(sha256 "$memdir/$rel")" "$memdir/$rel"
     done
     say "memory seed: $memdir"
   fi

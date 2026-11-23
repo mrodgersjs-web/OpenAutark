@@ -1,0 +1,313 @@
+{
+  "checked_at": "2026-11-23",
+  "method": "Every entry was opened through the GitHub API on 2026-11-23: repo exists, stars read, license read, and the `take` path listed in that repo's contents. An entry whose path later 404s fails `scripts/check.sh sources`, so the catalog cannot rot silently.",
+  "license_policy": "vendor = the files may be copied into a workspace (MIT, Apache-2.0, BSD only). reference = read and link, never copy (no declared license, or a license that needs a lawyer first). A pack that changes mode changes its id suffix, so an install that already happened stays traceable.",
+  "packs": [
+    {
+      "id": "anthropic-skills",
+      "repo": "anthropics/skills",
+      "stars": 199425,
+      "license": "mixed-per-skill",
+      "mode": "reference",
+      "take": "skills",
+      "why": "The format we already follow: 19 skills with name/description front matter, including docx, pdf, pptx, xlsx and skill-creator. It is the reference for what a SKILL.md must contain and how progressive disclosure is meant to work.",
+      "owners": [
+        "chief-of-staff",
+        "head-of-engineering"
+      ],
+      "risk": "No license file: read it, do not copy files. Our own skill format is already derived from the public spec, not from their files.",
+      "license_note": "No repo-wide grant. docx/pdf/pptx/xlsx moved to Apache-2.0 (2026-11-06); doc-coauthoring has no grant. Reference only; any future copy is per-skill and pinned."
+    },
+    {
+      "id": "superpowers",
+      "repo": "obra/superpowers",
+      "stars": 324971,
+      "license": "MIT",
+      "mode": "vendor",
+      "take": "skills",
+      "why": "The strongest skill library for how work gets done rather than what it is about: brainstorming, writing plans, executing plans, requesting and receiving code review, subagent-driven development, finishing a branch. These are the procedures our doers are missing.",
+      "owners": [
+        "head-of-engineering",
+        "qa-reviewer",
+        "software-architect"
+      ],
+      "risk": "Opinionated and long; take 6 skills, not 40.",
+      "license_note": "MIT; long and opinionated - take six skills, not forty. Upstream LICENSE/NOTICE is copied beside each installed skill."
+    },
+    {
+      "id": "wshobson-agents",
+      "repo": "wshobson/agents",
+      "stars": 42844,
+      "license": "MIT",
+      "mode": "vendor",
+      "take": "plugins",
+      "why": "Plugins with agents, skills and commands in one installable shape: agent-orchestration, agent-teams, api-testing-observability, accessibility-compliance, avoid-ai-writing. The orchestration and anti-slop plugins map straight onto our chief of staff and writing rules.",
+      "owners": [
+        "chief-of-staff",
+        "head-of-engineering",
+        "content-strategist"
+      ],
+      "risk": "Plugin layout is Claude-Code shaped; take the skill or agent file, not the plugin manifest.",
+      "license_note": "MIT; plugin layout is Claude-Code shaped, so take the skill or agent file, not the plugin manifest."
+    },
+    {
+      "id": "awesome-copilot",
+      "repo": "github/awesome-copilot",
+      "stars": 41484,
+      "license": "mixed",
+      "mode": "reference",
+      "take": "skills",
+      "why": "GitHub's own community pack: 100+ skills plus instructions and hooks, including acquire-codebase-knowledge, acreadiness-* reviews and domain skills. The codebase-knowledge skill is what a new agent needs on day one.",
+      "owners": [
+        "software-architect",
+        "qa-reviewer",
+        "research-analyst"
+      ],
+      "risk": "Mixed quality and duplicates; curate by name, never bulk-copy.",
+      "license_note": "Mixed: MIT skills plus Apache-2.0 skills that carry their own NOTICE (e.g. anti-ui-slop). Reference only; promote one named skill at a time after reading its own LICENSE."
+    },
+    {
+      "id": "voltagent-subagents",
+      "repo": "VoltAgent/awesome-claude-code-subagents",
+      "stars": 26746,
+      "license": "MIT",
+      "mode": "vendor",
+      "take": "categories",
+      "why": "100+ subagents in ten categories (core development, quality and security, data and AI, business and product, meta-orchestration). The business-and-product and meta-orchestration folders give us specialists we did not write.",
+      "owners": [
+        "head-of-gtm",
+        "head-of-security",
+        "chief-of-staff"
+      ],
+      "risk": "Persona-shaped, not procedure-shaped: convert to a SKILL.md with an output and a guardrail before installing.",
+      "license_note": "MIT; personas rather than procedures, so convert to a SKILL.md with an output and a guardrail first."
+    },
+    {
+      "id": "bmad-method",
+      "repo": "bmad-code-org/BMAD-METHOD",
+      "stars": 55665,
+      "license": "NOASSERTION",
+      "mode": "reference",
+      "take": "skills",
+      "why": "The most complete role choreography for building software with agents: analyst, PM, architect, dev, QA, with handoffs and artifacts between them. Our heads map onto their roles; their artifact chain is the part worth copying conceptually.",
+      "owners": [
+        "chief-of-staff",
+        "head-of-engineering"
+      ],
+      "risk": "License needs reading before any file moves. Reference only until then.",
+      "license_note": "NOASSERTION: MIT terms with separate trademark conditions. No file copying until read."
+    },
+    {
+      "id": "fabric-patterns",
+      "repo": "danielmiessler/Fabric",
+      "stars": 44754,
+      "license": "MIT",
+      "mode": "vendor",
+      "take": "data/patterns",
+      "why": "Hundreds of single-purpose patterns (analyze_claims, extract_wisdom, create_summary, write_essay, analyze_answers) written as plain prompts with inputs. These are the best raw material for our research, proof and writing skills.",
+      "owners": [
+        "research-analyst",
+        "content-strategist",
+        "proof-verifier"
+      ],
+      "risk": "Patterns are prompts without guardrails; wrap each one with an output format and a gate before use.",
+      "license_note": "MIT repo; patterns are prompts without guardrails, so each one gets an output format and a gate before use."
+    },
+    {
+      "id": "context-engineering-prp",
+      "repo": "coleam00/context-engineering-intro",
+      "stars": 13925,
+      "license": "MIT",
+      "mode": "vendor",
+      "take": "PRPs",
+      "why": "The PRP (product requirement prompt) pattern: a spec that gives an agent everything it needs to build a feature in one pass, plus the commands that generate and execute it. That is the missing bridge between our blueprint and a build.",
+      "owners": [
+        "software-architect",
+        "head-of-engineering"
+      ],
+      "risk": "Claude-Code command shape; take the PRP template and the reasoning, not the slash commands.",
+      "license_note": "MIT; command shape is Claude-Code specific - take the PRP template and the reasoning."
+    },
+    {
+      "id": "twelve-factor-agents",
+      "repo": "humanlayer/12-factor-agents",
+      "stars": 27382,
+      "license": "NOASSERTION",
+      "mode": "reference",
+      "take": ".",
+      "why": "Twelve principles for agents that survive production: own your prompts, own your context window, small focused agents, tools as structured outputs. Our orchestrator contract is one page; this is the doctrine behind it, and the disagreements are worth knowing.",
+      "owners": [
+        "chief-of-staff",
+        "head-of-engineering"
+      ],
+      "risk": "A book, not a skill. Read it, quote it, cite it; no file copying.",
+      "license_note": "NOASSERTION: Apache-2.0 code plus CC BY-SA 4.0 prose and images. Quote with attribution, copy nothing."
+    },
+    {
+      "id": "mcp-reference-servers",
+      "repo": "modelcontextprotocol/servers",
+      "stars": 92194,
+      "license": "NOASSERTION",
+      "mode": "reference",
+      "take": "src",
+      "why": "The reference MCP servers (filesystem, git, fetch, memory, time, sequential thinking). Autark agents that need a capability outside the app reach it through MCP; these are the smallest honest examples of each.",
+      "owners": [
+        "head-of-engineering",
+        "head-of-security"
+      ],
+      "risk": "Licenses vary per server inside the repo; check each before shipping one.",
+      "license_note": "Licenses vary per server (MIT and Apache-2.0 code, CC BY 4.0 docs). Check each server before shipping one."
+    },
+    {
+      "id": "awesome-mcp-servers",
+      "repo": "punkpeye/awesome-mcp-servers",
+      "stars": 98426,
+      "license": "MIT",
+      "mode": "reference",
+      "take": ".",
+      "why": "The discovery index for MCP: what already exists before we build it. Our rule is install-or-say-so, and this is where the saying-so starts.",
+      "owners": [
+        "head-of-engineering",
+        "research-analyst"
+      ],
+      "risk": "Index only; entries are unvetted third-party servers.",
+      "license_note": "Index only; entries are third-party servers nobody here has vetted."
+    },
+    {
+      "id": "context7",
+      "repo": "upstash/context7",
+      "stars": 65344,
+      "license": "MIT",
+      "mode": "reference",
+      "take": ".",
+      "why": "Live library documentation as an MCP tool. It kills the most common coding-agent failure in our layer: confident use of an API version that does not exist.",
+      "owners": [
+        "software-architect",
+        "qa-reviewer"
+      ],
+      "risk": "A hosted service; check the plan and the data path before connecting it to client work.",
+      "license_note": "Hosted service; check plan and data path before connecting it to client work."
+    },
+    {
+      "id": "mem0",
+      "repo": "mem0ai/mem0",
+      "stars": 69384,
+      "license": "Apache-2.0",
+      "mode": "reference",
+      "take": ".",
+      "why": "The reference implementation of memory extraction, deduplication and retrieval. Our memory is files on purpose, but their extraction and dedup logic is the part we should steal conceptually.",
+      "owners": [
+        "chief-of-staff",
+        "research-analyst"
+      ],
+      "risk": "Vector store by default, which we deliberately do not run. Patterns only.",
+      "license_note": "Apache-2.0, but it defaults to a vector store we deliberately do not run. Patterns only."
+    },
+    {
+      "id": "openhands-agents",
+      "repo": "OpenHands/OpenHands",
+      "stars": 94163,
+      "license": "MIT",
+      "mode": "vendor",
+      "take": ".agents/skills",
+      "why": "Autark's nearest structural sibling, and its microagents are skills with triggers - the closest public prior art to what our router does with `when` clauses.",
+      "owners": [
+        "chief-of-staff",
+        "head-of-engineering"
+      ],
+      "risk": "Path moved between versions; verify at intake (the catalog check fails loudly if it 404s).",
+      "license_note": "MIT; a skill with triggers is the closest prior art to our router. Path verified as .agents/skills."
+    },
+    {
+      "id": "browser-use",
+      "repo": "browser-use/browser-use",
+      "stars": 121860,
+      "license": "MIT",
+      "mode": "reference",
+      "take": ".",
+      "why": "How a browser agent actually drives a page: element extraction, action loops, failure recovery. Autark has a browser mode; this is the doctrine for its prompts.",
+      "owners": [
+        "head-of-engineering",
+        "research-analyst"
+      ],
+      "risk": "Python library, not skills. Read the prompts and the loop, do not vendor code.",
+      "license_note": "MIT library, not skills: read the prompts and the loop, vendor no code."
+    },
+    {
+      "id": "claude-cookbooks",
+      "repo": "anthropics/claude-cookbooks",
+      "stars": 55116,
+      "license": "MIT",
+      "mode": "reference",
+      "take": ".",
+      "why": "Recipes for tool use, evaluations, RAG and classification. The evaluation notebooks are the model for the checks our agents should run on themselves.",
+      "owners": [
+        "qa-reviewer",
+        "head-of-engineering"
+      ],
+      "risk": "Notebooks; port the idea, not the code.",
+      "license_note": "Notebooks under MIT; port the idea, do not paste the code into the layer."
+    },
+    {
+      "id": "agent-rules",
+      "repo": "steipete/agent-rules",
+      "stars": 5666,
+      "license": "MIT",
+      "mode": "vendor",
+      "take": ".",
+      "why": "Small, sharp rule files for coding agents (how to edit, how to test, how to report). Our agents' instructions are long; these show how much a short rule file can do.",
+      "owners": [
+        "head-of-engineering",
+        "qa-reviewer"
+      ],
+      "risk": "Rules are tool-specific; take the shape and the wording discipline.",
+      "license_note": "MIT; rules are tool-specific - take the shape and the wording discipline."
+    },
+    {
+      "id": "awesome-claude-code",
+      "repo": "hesreallyhim/awesome-claude-code",
+      "stars": 58675,
+      "license": "CC-BY-NC-ND-4.0",
+      "mode": "reference",
+      "take": ".",
+      "why": "The index of commands, hooks, workflows and status lines that people actually use. The hooks section is where our cadence and gates should be looking for prior art.",
+      "owners": [
+        "head-of-engineering",
+        "chief-of-staff"
+      ],
+      "risk": "List license is unclear; links only.",
+      "license_note": "CC BY-NC-ND bars commercial reuse and adaptations. Links only, no excerpts."
+    },
+    {
+      "id": "awesome-claude-skills",
+      "repo": "travisvn/awesome-claude-skills",
+      "stars": 15921,
+      "license": "none-declared",
+      "mode": "reference",
+      "take": ".",
+      "why": "A curated index of individual skills with one-line descriptions - the fastest way to answer do we already have a skill for this before writing another one.",
+      "owners": [
+        "chief-of-staff",
+        "research-analyst"
+      ],
+      "risk": "Index only; no license declared on the list itself.",
+      "license_note": "No license on the collection. Link and summarise in our own words; do not copy text."
+    },
+    {
+      "id": "awesome-claude-prompts",
+      "repo": "langgptai/awesome-claude-prompts",
+      "stars": 5593,
+      "license": "none-declared",
+      "mode": "reference",
+      "take": ".",
+      "why": "Prompt patterns collected by use case. Useful for the intake conversation and for the writing skills, where the first three sentences decide whether anything else is read.",
+      "owners": [
+        "content-strategist",
+        "linkedin-writer"
+      ],
+      "risk": "No license declared; read for shape, write our own words.",
+      "license_note": "No license declared. Read for shape, write our own words."
+    }
+  ],
+  "review_note": "Licensing review 2026-11-23 (zero-context reviewer) moved awesome-copilot from vendor to reference for mixed per-skill licenses, corrected anthropic-skills, awesome-claude-code and the three NOASSERTION packs, and re-pointed openhands-agents at .agents/skills."
+}

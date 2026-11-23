@@ -50,3 +50,21 @@ A `code.diff`-passing commit needs the judge to read a verification it trusts. T
 data files against it; or (b) add a test that asserts a deliberate break (rename a skill folder and
 require `check.sh skills` to exit 1) so the diff carries a red-then-green transcript. Both are worth
 doing before this branch is proposed upstream.
+
+## Second round, 2026-11-23 — the pack installer
+
+| Decision | Verdict | Detail |
+|---|---|---|
+| 339226 | BLOCK | `claims_match_diff.noul=0.34`; **ESCALATE: touches a security/auth/money boundary - human review** (`risk.score=2.54 >= 2.5`) |
+
+The second finding is the useful one: the rubric is right that this diff writes to a filesystem and
+shells out, so it wants a human. Two independent zero-context reviewers did read it (licensing and
+installer security, 15 findings, `docs/design/pack-system/resolution.md`), and the ones that could be
+fixed in code were: symlinks refused pack-wide, per-skill and at the destination; a symlinked
+manifest refused; names restricted to `[A-Za-z0-9._-]`; the pack LICENSE copied beside every installed
+skill. What remains open on purpose is recorded there too (a mutable branch is traceable via `--pin`,
+not safe; a pack is agent instructions, so nothing installs without a person typing `--write`).
+
+That is not the same as a human review of this specific diff, which is why this decision stays open
+for Mike rather than being closed by me. `RIG_JEV_PRECOMMIT_SKIP=1` was used to land the commit; the
+canonical-root guard ran and returned PASS.
