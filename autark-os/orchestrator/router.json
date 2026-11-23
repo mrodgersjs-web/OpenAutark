@@ -1,0 +1,105 @@
+{
+  "version": "1.0.0",
+  "owner": "chief-of-staff",
+  "modes": ["browser", "computer", "finance", "general", "manager", "research", "secretary", "social", "video", "web"],
+  "routes": [
+    {
+      "id": "route-question",
+      "when": ["how does", "what is", "explain", "where is", "who is"],
+      "agent": "research-analyst",
+      "skills": ["research-report"],
+      "gate": "G1"
+    },
+    {
+      "id": "route-decision",
+      "when": ["should we", "which option", "choose between", "pricing", "offer", "positioning"],
+      "agent": "council-reviewer",
+      "skills": ["gtm-council-review", "gtm-offer"],
+      "gate": "G1"
+    },
+    {
+      "id": "route-build",
+      "when": ["build", "implement", "add feature", "refactor", "fix the repo", "scaffold"],
+      "agent": "software-architect",
+      "skills": ["repo-architecture", "code-review", "quality-gate"],
+      "gate": "G2"
+    },
+    {
+      "id": "route-review",
+      "when": ["review this", "is this good", "check my work", "audit", "second opinion"],
+      "agent": "qa-reviewer",
+      "skills": ["code-review", "ui-finish-gate", "done-claim-verification"],
+      "gate": "G0"
+    },
+    {
+      "id": "route-design",
+      "when": ["design", "redesign", "layout", "brand", "look", "interface", "landing page"],
+      "agent": "head-of-design",
+      "skills": ["design-critique", "ui-finish-gate", "competitive-benchmark"],
+      "gate": "G1"
+    },
+    {
+      "id": "route-prospect",
+      "when": ["find leads", "prospects", "outreach", "pipeline", "cold email", "connect note"],
+      "agent": "outbound-strategist",
+      "skills": ["gtm-icp", "gtm-signals", "gtm-outbound-sequence", "gtm-draft-only"],
+      "gate": "G1"
+    },
+    {
+      "id": "route-content",
+      "when": ["post", "article", "newsletter", "content calendar", "linkedin"],
+      "agent": "content-strategist",
+      "skills": ["gtm-linkedin-post", "gtm-council-review", "gtm-draft-only"],
+      "gate": "G1"
+    },
+    {
+      "id": "route-search-visibility",
+      "when": ["seo", "aeo", "llms.txt", "cited by", "ranking", "answer engine"],
+      "agent": "seo-aeo-strategist",
+      "skills": ["gtm-aeo-surface", "gtm-icp"],
+      "gate": "G1"
+    },
+    {
+      "id": "route-offer",
+      "when": ["price", "pricing", "offer", "proposal", "scope", "renewal"],
+      "agent": "head-of-gtm",
+      "skills": ["gtm-offer", "gtm-pipeline-forecast"],
+      "gate": "G1"
+    },
+    {
+      "id": "route-money",
+      "when": ["invoice", "cash", "budget", "spend", "runway", "forecast"],
+      "agent": "head-of-finance-ops",
+      "skills": ["gtm-metrics-scorecard", "proof-packet"],
+      "gate": "G1"
+    },
+    {
+      "id": "route-security",
+      "when": ["secret", "leak", "permission", "breach", "incident", "vulnerability"],
+      "agent": "head-of-security",
+      "skills": ["quality-gate", "proof-packet", "memory-hygiene"],
+      "gate": "G2"
+    },
+    {
+      "id": "route-team",
+      "when": ["hire an agent", "new agent", "add a specialist", "team setup", "org chart"],
+      "agent": "chief-of-staff",
+      "skills": ["agent-team-hiring", "skill-authoring", "memory-hygiene"],
+      "gate": "G2"
+    },
+    {
+      "id": "route-verify",
+      "when": ["is it done", "did that work", "verify", "prove it"],
+      "agent": "proof-verifier",
+      "skills": ["done-claim-verification", "proof-packet", "quality-gate"],
+      "gate": "G0"
+    },
+    {
+      "id": "route-operations",
+      "when": ["process", "routine", "weekly review", "plan the week", "stuck", "prioritise"],
+      "agent": "chief-of-staff",
+      "skills": ["orchestrator-routing", "work-intake", "memory-hygiene"],
+      "gate": "G2"
+    }
+  ]
+}
