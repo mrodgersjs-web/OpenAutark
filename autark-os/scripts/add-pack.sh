@@ -56,15 +56,17 @@ if [ "$MODE" = "reference" ]; then
   exit 0
 fi
 
-# Verify the path still exists upstream before touching anything.
-if command -v gh >/dev/null 2>&1; then
+# Verify the path still exists upstream before touching anything. Only when we are actually going to
+# fetch from GitHub: a local --from pack needs no network, and an unauthenticated gh on a CI runner
+# must not be read as "the repo moved".
+if [ -z "$FROM" ] && command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
   if ! gh api "repos/$REPO/contents/$TAKE" >/dev/null 2>&1; then
     say "FAIL: $REPO has no path '$TAKE' any more - the catalog needs updating."
     exit 1
   fi
   say "path:   verified on GitHub just now"
 else
-  say "path:   not verified (gh not installed)"
+  say "path:   not verified (no authenticated gh; the clone below is the check)"
 fi
 
 TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
