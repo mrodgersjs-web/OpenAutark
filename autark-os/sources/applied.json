@@ -1,0 +1,91 @@
+{
+  "generated_at": "2026-11-23",
+  "workspace": "/Users/rig128gb/Workforce/skills",
+  "manifest": "/Users/rig128gb/Workforce/autark-os.manifest",
+  "note": "Installed by scripts/add-pack.sh --write against the workspace the app reads. Additive: agent rosters are unchanged, so nothing new runs until an agent lists a skill. Verified after install by checking each SKILL.md exists.",
+  "applied": [
+    {
+      "pack": "wshobson-agents",
+      "license": "MIT",
+      "commit": "34e50fee32114afd9475f25d81492712f08cb71c",
+      "source": "https://github.com/wshobson/agents",
+      "skills": [
+        "wshobson-agents--team-lead",
+        "wshobson-agents--team-spawn",
+        "wshobson-agents--team-status",
+        "wshobson-agents--team-delegate",
+        "wshobson-agents--accessibility-audit",
+        "wshobson-agents--avoid-ai-writing"
+      ],
+      "verified_present": 6,
+      "verified_missing": []
+    },
+    {
+      "pack": "voltagent-subagents",
+      "license": "MIT",
+      "commit": "ed74d115b7fb7026a22a4f816a8e3250f425e3b4",
+      "source": "https://github.com/VoltAgent/awesome-claude-code-subagents",
+      "skills": [
+        "voltagent-subagents--multi-agent-coordinator",
+        "voltagent-subagents--workflow-orchestrator",
+        "voltagent-subagents--product-manager",
+        "voltagent-subagents--business-analyst",
+        "voltagent-subagents--security-auditor",
+        "voltagent-subagents--code-reviewer",
+        "voltagent-subagents--qa-expert",
+        "voltagent-subagents--research-analyst",
+        "voltagent-subagents--competitive-analyst"
+      ],
+      "verified_present": 9,
+      "verified_missing": []
+    },
+    {
+      "pack": "superpowers",
+      "license": "MIT",
+      "commit": "22f0b463e7a5e579904dd6211a520321035526f7",
+      "source": "https://github.com/obra/superpowers",
+      "skills": [
+        "superpowers--writing-plans",
+        "superpowers--executing-plans",
+        "superpowers--systematic-debugging",
+        "superpowers--using-git-worktrees",
+        "superpowers--brainstorming",
+        "superpowers--test-driven-development",
+        "superpowers--verification-before-completion",
+        "superpowers--receiving-code-review"
+      ],
+      "verified_present": 8,
+      "verified_missing": []
+    },
+    {
+      "pack": "context-engineering-prp",
+      "license": "MIT",
+      "commit": "a2d84b021cee1e2f4e77ba854bba0be8cb319035",
+      "source": "https://github.com/coleam00/context-engineering-intro",
+      "skills": [
+        "context-engineering-prp--prp_base"
+      ],
+      "verified_present": 1,
+      "verified_missing": []
+    },
+    {
+      "pack": "fabric-patterns",
+      "license": "MIT",
+      "commit": "30b83e996cd1e6e3f5843fb5b64997ea63ecfd5c",
+      "source": "https://github.com/danielmiessler/Fabric",
+      "skills": [
+        "fabric-patterns--write_essay",
+        "fabric-patterns--analyze_claims",
+        "fabric-patterns--extract_wisdom",
+        "fabric-patterns--create_summary"
+      ],
+      "verified_present": 4,
+      "verified_missing": []
+    }
+  ],
+  "verified_through_app": {
+    "method": "skills.list over the app RPC on 127.0.0.1:47811",
+    "result": "28 of 28 pack skills returned, names <pack>--<name>, front matter parsed",
+    "checked_at": "2026-11-23"
+  }
+}

@@ -6,98 +6,122 @@
     {
       "id": "P1",
       "title": "Agent to pack map",
-      "status": "todo",
+      "status": "done",
       "depends_on": [],
       "acceptance": [
         "sources/agent-packs.json names all 15 agents",
         "each entry lists pack skills and own skills separately",
         "no agent is assigned a skill from a reference-mode pack"
       ],
-      "verify": "node -e 'const m=require(\"./sources/agent-packs.json\");const a=require(\"fs\").readdirSync(\"./agents\").filter(f=>f.endsWith(\".md\")).map(f=>f.slice(0,-3));const miss=a.filter(x=>!m.agents[x]);process.exit(miss.length?1:0)'"
+      "verify": "node -e 'const m=require(\"./sources/agent-packs.json\");const a=require(\"fs\").readdirSync(\"./agents\").filter(f=>f.endsWith(\".md\")).map(f=>f.slice(0,-3));const miss=a.filter(x=>!m.agents[x]);process.exit(miss.length?1:0)'",
+      "evidence": "sources/agent-packs.json maps 15/15 agents; check.sh sources validates it (own skills exist, packs are vendor-mode)"
     },
     {
       "id": "P2",
       "title": "List installed packs",
-      "status": "todo",
-      "depends_on": ["P1"],
+      "status": "done",
+      "depends_on": [
+        "P1"
+      ],
       "acceptance": [
         "prints pack id, license, source url and installed skill folders",
         "reads the manifest, not the filesystem",
         "exits 0 with a header even when nothing is installed"
       ],
-      "verify": "sh autark-os/scripts/add-pack.sh --list | head -1"
+      "verify": "sh autark-os/scripts/add-pack.sh --list | head -1",
+      "evidence": "add-pack.sh --list reads the manifest and prints pack, license, source and skill folders; asserted in tests/pack-remove.sh"
     },
     {
       "id": "P3",
       "title": "Remove a pack safely",
-      "status": "todo",
-      "depends_on": ["P2"],
+      "status": "done",
+      "depends_on": [
+        "P2"
+      ],
       "acceptance": [
         "deletes only hash-matching files",
         "keeps an edited file and names it",
         "requires --write; without it, prints the plan and exits 2"
       ],
-      "verify": "sh autark-os/tests/pack-remove.sh"
+      "verify": "sh autark-os/tests/pack-remove.sh",
+      "evidence": "add-pack.sh --remove deletes only hash-matching files, keeps edited ones; tests/pack-remove.sh passes in check.sh sources"
     },
     {
       "id": "P4",
       "title": "Docs check covers sources and architecture",
-      "status": "todo",
+      "status": "done",
       "depends_on": [],
       "acceptance": [
         "a broken link in sources/ fails check.sh docs",
         "a broken link in docs/architecture/ fails check.sh docs",
         "no root is scanned twice"
       ],
-      "verify": "sh autark-os/scripts/check.sh docs"
+      "verify": "sh autark-os/scripts/check.sh docs",
+      "evidence": "check.sh docs now walks sources/ and docs/architecture/; verified by appending a broken link and watching it FAIL"
     },
     {
       "id": "P5",
       "title": "Two-OS CI matrix",
-      "status": "todo",
+      "status": "done",
       "depends_on": [],
       "acceptance": [
         "matrix lists ubuntu-latest and macos-latest",
         "both jobs run check.sh all",
         "the apps/ untouched check stays in both"
       ],
-      "verify": "grep -q 'macos-latest' .github/workflows/autark-os-check.yml"
+      "verify": "grep -q 'macos-latest' .github/workflows/autark-os-check.yml",
+      "evidence": ".github/workflows/autark-os-check.yml runs the matrix ubuntu-latest + macos-latest"
     },
     {
       "id": "P6",
       "title": "Catalog rot probe",
-      "status": "todo",
+      "status": "done",
       "depends_on": [],
       "acceptance": [
         "re-checks every take path through the GitHub API",
         "prints one line per pack",
         "exits 1 on drift and names the pack"
       ],
-      "verify": "sh autark-os/scripts/verify-packs.sh"
+      "verify": "sh autark-os/scripts/verify-packs.sh",
+      "evidence": "scripts/verify-packs.sh re-opened all 20 take paths: 20 ok, 0 drift (2026-11-23)"
     },
     {
       "id": "P7",
       "title": "Apply the first five packs",
-      "status": "todo",
-      "depends_on": ["P1", "P3"],
+      "status": "done",
+      "depends_on": [
+        "P1",
+        "P3"
+      ],
       "acceptance": [
         "five packs installed into a workspace, named in sources/applied.json",
         "each installed skill is reachable from at least one agent",
         "agents outside the map are untouched"
       ],
-      "verify": "node -e 'const a=require(\"./sources/applied.json\");process.exit(a.applied.length>=5?0:1)'"
+      "verify": "node -e 'const a=require(\"./sources/applied.json\");process.exit(a.applied.length>=5?0:1)'",
+      "evidence": "five packs, 28 skills installed into ~/Workforce/skills; sources/applied.json records pack, commit sha and per-skill presence (0 missing)"
     },
     {
       "id": "P8",
       "title": "Proof packet",
-      "status": "todo",
-      "depends_on": ["P1", "P2", "P3", "P4", "P5", "P6", "P7"],
+      "status": "done",
+      "depends_on": [
+        "P1",
+        "P2",
+        "P3",
+        "P4",
+        "P5",
+        "P6",
+        "P7"
+      ],
       "acceptance": [
         "check output, fixture transcript and commit sha in one file",
         "file counts match the tree",
         "written per skills/proof-packet"
       ],
-      "verify": "sh autark-os/scripts/check.sh all && test -f autark-os/sources/proof/autark-skill-packs.md"
+      "verify": "sh autark-os/scripts/check.sh all && test -f autark-os/sources/proof/autark-skill-packs.md",
+      "evidence": "sources/proof/autark-skill-packs.md carries the check output, the upstream re-check, the installed list and the archive hash"
     }
-  ]
+  ],
+  "status_note": "All eight steps green on 2026-11-23. Frozen from here: each verify command must keep exiting 0."
 }

@@ -1,0 +1,88 @@
+{
+  "created_at": "2026-11-23",
+  "rule": "own = a skill in autark-os/skills. packs = a vendorable catalog pack and the exact upstream items that agent should have. Reference-mode packs never appear here.",
+  "agents": {
+    "chief-of-staff": {
+      "own": ["orchestrator-routing", "work-intake", "quality-gate", "agent-team-hiring", "memory-hygiene"],
+      "packs": [
+        {"pack": "wshobson-agents", "skills": ["team-lead", "team-spawn", "team-status", "team-delegate"]},
+        {"pack": "voltagent-subagents", "skills": ["multi-agent-coordinator", "workflow-orchestrator"]}
+      ]
+    },
+    "head-of-engineering": {
+      "own": ["repo-architecture", "code-review", "skill-authoring"],
+      "packs": [
+        {"pack": "superpowers", "skills": ["writing-plans", "executing-plans", "systematic-debugging", "using-git-worktrees"]},
+        {"pack": "context-engineering-prp", "skills": ["prp_base"]}
+      ]
+    },
+    "head-of-gtm": {
+      "own": ["gtm-icp", "gtm-offer", "gtm-pipeline-forecast", "gtm-signals"],
+      "packs": [{"pack": "voltagent-subagents", "skills": ["product-manager", "business-analyst"]}]
+    },
+    "head-of-design": {
+      "own": ["design-critique", "ui-finish-gate"],
+      "packs": []
+    },
+    "head-of-finance-ops": {
+      "own": ["gtm-metrics-scorecard"],
+      "packs": []
+    },
+    "head-of-security": {
+      "own": ["quality-gate", "code-review"],
+      "packs": [
+        {"pack": "voltagent-subagents", "skills": ["security-auditor"]},
+        {"pack": "wshobson-agents", "skills": ["accessibility-audit"]}
+      ]
+    },
+    "outbound-strategist": {
+      "own": ["gtm-outbound-sequence", "gtm-signals", "gtm-draft-only"],
+      "packs": []
+    },
+    "content-strategist": {
+      "own": ["gtm-draft-only"],
+      "packs": [
+        {"pack": "wshobson-agents", "skills": ["avoid-ai-writing"]},
+        {"pack": "fabric-patterns", "skills": ["write_essay"]}
+      ]
+    },
+    "linkedin-writer": {
+      "own": ["gtm-linkedin-post"],
+      "packs": [{"pack": "wshobson-agents", "skills": ["avoid-ai-writing"]}]
+    },
+    "seo-aeo-strategist": {
+      "own": ["gtm-aeo-surface"],
+      "packs": []
+    },
+    "software-architect": {
+      "own": ["repo-architecture", "skill-authoring"],
+      "packs": [
+        {"pack": "superpowers", "skills": ["brainstorming"]},
+        {"pack": "context-engineering-prp", "skills": ["prp_base"]},
+        {"pack": "voltagent-subagents", "skills": ["code-reviewer"]}
+      ]
+    },
+    "qa-reviewer": {
+      "own": ["code-review", "done-claim-verification"],
+      "packs": [
+        {"pack": "superpowers", "skills": ["test-driven-development", "verification-before-completion", "receiving-code-review"]},
+        {"pack": "voltagent-subagents", "skills": ["qa-expert"]}
+      ]
+    },
+    "research-analyst": {
+      "own": ["research-report", "competitive-benchmark"],
+      "packs": [
+        {"pack": "fabric-patterns", "skills": ["analyze_claims", "extract_wisdom", "create_summary"]},
+        {"pack": "voltagent-subagents", "skills": ["research-analyst", "competitive-analyst"]}
+      ]
+    },
+    "proof-verifier": {
+      "own": ["proof-packet", "done-claim-verification"],
+      "packs": [{"pack": "fabric-patterns", "skills": ["analyze_claims"]}]
+    },
+    "council-reviewer": {
+      "own": ["quality-gate", "proof-packet", "gtm-council-review"],
+      "packs": [{"pack": "voltagent-subagents", "skills": ["multi-agent-coordinator"]}]
+    }
+  }
+}

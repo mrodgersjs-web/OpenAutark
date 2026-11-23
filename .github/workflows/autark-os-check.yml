@@ -12,16 +12,23 @@ permissions:
 
 jobs:
   layer:
-    runs-on: ubuntu-latest
+    # Two operating systems on purpose: the layer claims shasum AND sha256sum work
+    # (scripts/lib.sh), and that claim is only worth something if both are exercised.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
-      - name: Layer checks (layout, agents, skills, router, docs, install)
+      - name: Layer checks (layout, agents, skills, router, docs, sources, install)
         run: sh autark-os/scripts/check.sh all
       - name: No edits under apps/
         run: |
+          git fetch --quiet origin main || true
           if git diff --name-only origin/main...HEAD -- apps | grep -q .; then
             echo "autark-os must not modify upstream app code"; exit 1
           fi

@@ -92,7 +92,7 @@ check_router() {
 check_docs() {
   node -e '
     const fs = require("fs"), path = require("path");
-    const roots = [path.join(process.argv[1]), path.join(process.argv[2])];
+    const roots = [path.join(process.argv[1]), path.join(process.argv[2]), path.join(process.argv[1], "sources"), path.join(process.argv[1], "docs/architecture")];
     const bad = [];
     const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
       const p = path.join(dir, e.name);
@@ -151,6 +151,45 @@ check_sources() {
     const v = cat.packs.filter((p) => p.mode === "vendor").length;
     console.log("ok   sources: " + cat.packs.length + " packs (" + v + " vendor, " + (cat.packs.length - v) + " reference), ids unique, owners resolve, catalog.md in sync");
   ' "$L" || FAIL=1
+
+  # The agent map and the applied record are the join between a pack and a person's team.
+  node -e '
+    const fs = require("fs"), path = require("path");
+    const L = process.argv[1];
+    const bad = [];
+    const map = JSON.parse(fs.readFileSync(path.join(L, "sources/agent-packs.json"), "utf8"));
+    const cat = JSON.parse(fs.readFileSync(path.join(L, "sources/catalog.json"), "utf8"));
+    const byId = Object.fromEntries(cat.packs.map((p) => [p.id, p]));
+    const agents = fs.readdirSync(path.join(L, "agents")).filter((f) => f.endsWith(".md")).map((f) => f.slice(0, -3));
+    for (const a of agents) if (!map.agents[a]) bad.push("agent-packs: no entry for " + a);
+    for (const [a, v] of Object.entries(map.agents)) {
+      if (!agents.includes(a)) bad.push("agent-packs: unknown agent " + a);
+      for (const own of v.own || []) if (!fs.existsSync(path.join(L, "skills", own, "SKILL.md"))) bad.push("agent-packs: " + a + " own skill " + own + " does not exist");
+      for (const p of v.packs || []) {
+        const meta = byId[p.pack];
+        if (!meta) bad.push("agent-packs: " + a + " names unknown pack " + p.pack);
+        else if (meta.mode !== "vendor") bad.push("agent-packs: " + a + " uses reference-only pack " + p.pack);
+        if (!p.skills || !p.skills.length) bad.push("agent-packs: " + a + " pack " + p.pack + " has no skills");
+      }
+    }
+    const appliedFile = path.join(L, "sources/applied.json");
+    if (fs.existsSync(appliedFile)) {
+      const ap = JSON.parse(fs.readFileSync(appliedFile, "utf8"));
+      if ((ap.applied || []).length < 5) bad.push("applied: fewer than five packs recorded");
+      for (const r of ap.applied || []) {
+        const meta = byId[r.pack];
+        if (!meta) bad.push("applied: unknown pack " + r.pack);
+        else if (meta.mode !== "vendor") bad.push("applied: reference pack installed " + r.pack);
+        if (!/^[0-9a-f]{40}$/.test(r.commit || "")) bad.push("applied: " + r.pack + " has no commit sha");
+        if ((r.verified_missing || []).length) bad.push("applied: " + r.pack + " has missing skills");
+        if (fs.existsSync(ap.workspace)) for (const sk of r.skills) if (!fs.existsSync(path.join(ap.workspace, sk, "SKILL.md"))) bad.push("applied: " + sk + " not on disk");
+      }
+    }
+    if (bad.length) { bad.forEach((b) => console.log("FAIL sources: " + b)); process.exit(1); }
+    console.log("ok   sources: agent map covers " + agents.length + " agents; applied record consistent");
+  ' "$L" || FAIL=1
+
+  if sh "$L/tests/pack-remove.sh" >/dev/null 2>&1; then ok sources "remove: unedited files deleted, edited file kept, manifest updated"; else fail sources "pack-remove.sh failed"; fi
 
   # A pack that carries a symlink must be refused, not followed.
   tmp2=$(mktemp -d)

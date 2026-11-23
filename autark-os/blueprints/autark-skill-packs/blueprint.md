@@ -59,6 +59,13 @@ WHEN the steps above are done THE SYSTEM SHALL carry one proof packet: the check
 fixture transcript, the file counts and the commit sha, per `skills/proof-packet`.
 Verify: `sh autark-os/scripts/check.sh all && test -f autark-os/sources/proof/autark-skill-packs.md`
 
+## Status, 2026-11-23
+
+All eight steps are green: the map exists for all 15 agents, `--list` and `--remove` work and are
+tested, the docs check covers the new roots, CI runs on Ubuntu and macOS, the catalog re-check found
+0 drift in 20 packs, five packs (28 skills) are installed and recorded with their commit shas, and
+the proof packet is `sources/proof/autark-skill-packs.md`. From here the verify commands are frozen.
+
 ## What this blueprint does not do
 
 - It does not install anything into the live app. That is a person's decision, one pack at a time.

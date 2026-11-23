@@ -13,6 +13,8 @@ L=$(cd "$HERE/.." && pwd)
 CATALOG="$L/sources/catalog.json"
 
 PACK=${1:-}
+if [ "$PACK" = "--list" ]; then LIST=1; else LIST=0; fi
+REMOVE=0
 WRITE=0
 ONLY=""
 FROM=""
@@ -21,6 +23,7 @@ shift || true
 while [ $# -gt 0 ]; do
   case "$1" in
     --write) WRITE=1 ;;
+    --remove) REMOVE=1 ;;
     --only) shift; ONLY=${1:-} ;;
     --from) shift; FROM=${1:-} ;;
     --pin) shift; PIN=${1:-} ;;
@@ -29,6 +32,82 @@ while [ $# -gt 0 ]; do
   esac
   shift
 done
+. "$HERE/lib.sh"
+WS=$(resolve_workspace "${AUTARK_DATA:-$HOME/Library/Application Support/Autark}")
+MANIFEST="${AUTARK_DATA:+$AUTARK_DATA/autark-os.manifest}"
+MANIFEST=${MANIFEST:-"$WS/autark-os.manifest"}
+
+if [ "$LIST" = 1 ]; then
+  [ -f "$MANIFEST" ] || { say_header="installed packs"; printf '%s\n' "$say_header"; printf 'none: %s does not exist yet\n' "$MANIFEST"; exit 0; }
+  node -e '
+    const fs = require("fs"), path = require("path");
+    const [manifest, catalogFile] = process.argv.slice(1);
+    const cat = JSON.parse(fs.readFileSync(catalogFile, "utf8"));
+    const byId = Object.fromEntries(cat.packs.map((p) => [p.id, p]));
+    const groups = new Map();
+    for (const line of fs.readFileSync(manifest, "utf8").split("\n")) {
+      const m = line.match(/^file [0-9a-f]{64} (.+)$/);
+      if (!m) continue;
+      const parts = m[1].split(path.sep + "skills" + path.sep);
+      if (parts.length < 2) continue;
+      const seg = parts[1].split(path.sep)[0];
+      const [pack, ...rest] = seg.split("--");
+      const name = rest.join("--");
+      if (!groups.has(pack)) groups.set(pack, new Map());
+      const g = groups.get(pack);
+      g.set(name, (g.get(name) || 0) + 1);
+    }
+    console.log("installed packs (" + groups.size + "):");
+    if (!groups.size) console.log("  none");
+    for (const [pack, skills] of groups) {
+      const meta = byId[pack] || {};
+      console.log("  " + pack.padEnd(22) + (meta.license || "?").padEnd(16) + (meta.repo ? "https://github.com/" + meta.repo : "unknown source"));
+      for (const [name, files] of skills) console.log("      " + name + " (" + files + " files)");
+    }
+  ' "$MANIFEST" "$CATALOG"
+  exit 0
+fi
+
+if [ "$REMOVE" = 1 ]; then
+  [ -n "$PACK" ] || { echo "usage: add-pack.sh <pack-id> --remove --write" >&2; exit 2; }
+  [ -L "$MANIFEST" ] && { echo "FAIL: $MANIFEST is a symlink. Refusing." >&2; exit 1; }
+  if [ ! -f "$MANIFEST" ]; then echo "nothing installed: $MANIFEST does not exist"; exit 0; fi
+  if [ "$WRITE" = 0 ]; then
+    node -e '
+      const fs = require("fs");
+      const [manifest, pack] = process.argv.slice(1);
+      const hits = fs.readFileSync(manifest, "utf8").split("\n").filter((l) => l.includes("/skills/" + pack + "--"));
+      console.log("would remove " + hits.length + " files from " + pack + " (dry run)");
+      for (const h of hits.slice(0, 10)) console.log("  " + h.split(" ").slice(2).join(" "));
+      if (hits.length > 10) console.log("  ... " + (hits.length - 10) + " more");
+    ' "$MANIFEST" "$PACK"
+    echo "Re-run with --write to remove them."
+    exit 2
+  fi
+  MANIFEST_PATH="$MANIFEST" node -e '
+    const fs = require("fs"), path = require("path"), cp = require("child_process");
+    const [manifest, pack] = process.argv.slice(1);
+    const keep = [], removed = [], edited = [];
+    for (const line of fs.readFileSync(manifest, "utf8").split("\n")) {
+      if (!line.startsWith("file ")) { if (line.trim()) keep.push(line); continue; }
+      const [, sha, ...rest] = line.split(" ");
+      const file = rest.join(" ");
+      if (!file.includes(path.sep + "skills" + path.sep + pack + "--")) { keep.push(line); continue; }
+      let current = null;
+      try { current = cp.execSync("shasum -a 256 " + JSON.stringify(file) + " 2>/dev/null || sha256sum " + JSON.stringify(file)).toString().split(" ")[0]; } catch (e) {}
+      if (current === sha) { try { fs.unlinkSync(file); } catch (e) {} removed.push(file); }
+      else { edited.push(file); keep.push(line); }
+    }
+    fs.writeFileSync(process.env.MANIFEST_PATH, keep.join("\n") + (keep.length ? "\n" : ""));
+    console.log("removed " + removed.length + " files");
+    if (edited.length) { console.log("kept " + edited.length + " edited files (not deleted):"); edited.slice(0, 10).forEach((f) => console.log("  " + f)); }
+    // prune now-empty skill folders for this pack
+    const dirs = new Set(removed.map((f) => path.dirname(f)));
+    for (const d of dirs) { try { fs.rmdirSync(d); } catch (e) {} }
+  ' "$MANIFEST" "$PACK"
+  exit 0
+fi
+
 [ -n "$PACK" ] || { echo "usage: add-pack.sh <pack-id> [--write] [--only a,b]" >&2; echo "packs:" >&2; node -e 'require(process.argv[1]).packs.forEach(p=>console.log("  "+p.id+"  ("+p.mode+")  "+p.repo))' "$CATALOG" >&2; exit 2; }
 
 . "$HERE/lib.sh"
@@ -109,8 +188,11 @@ PLAN=$(cd "$TMP/src" && node -e '
       const p = path.join(dir, e.name);
       if (e.isDirectory()) {
         if (fs.existsSync(path.join(p, "SKILL.md"))) { out.push({ kind: "skill", from: path.resolve(p), name: e.name }); }
+        else if (fs.existsSync(path.join(p, "system.md"))) { out.push({ kind: "pattern", from: path.resolve(p), name: e.name }); }
         else walk(p, depth + 1);
-      } else if (e.isFile() && e.name.endsWith(".md") && depth <= 1 && dir === root) {
+      } else if (e.isFile() && e.name.endsWith(".md") && depth <= 2 && !/^(README|LICENSE|CHANGELOG|CONTRIBUTING|CODE_OF_CONDUCT|SECURITY|NOTICE)\.md$/i.test(e.name)) {
+        // Agents and prompt patterns ship as one .md per item, up to two folders deep
+        // (categories/01-core/backend-developer.md, data/patterns/analyze_claims.md).
         out.push({ kind: "doc", from: path.resolve(p), name: e.name.replace(/\.md$/, "") });
       }
     }
@@ -141,8 +223,6 @@ if [ "$WRITE" = 0 ]; then
 fi
 
 mkdir -p "$WS/skills"
-MANIFEST="${AUTARK_DATA:+$AUTARK_DATA/autark-os.manifest}"
-MANIFEST=${MANIFEST:-"$WS/autark-os.manifest"}
 if [ -L "$MANIFEST" ]; then say "FAIL: $MANIFEST is a symlink. Refusing to append."; exit 1; fi
 : > "$TMP/manifest"
 
@@ -165,7 +245,23 @@ while IFS="$(printf '\t')" read -r kind from name; do
   if [ -e "$dest" ]; then say "exists, skipped: $dest"; continue; fi
   if find "$from" -type l | head -1 | grep -q .; then say "FAIL: $name contains a symlink. Skipped."; continue; fi
   mkdir "$dest"
-  if [ "$kind" = "skill" ]; then cp -R "$from/." "$dest/"; else cp "$from" "$dest/SKILL.md"; fi
+  if [ "$kind" = "skill" ]; then cp -R "$from/." "$dest/"
+  elif [ "$kind" = "pattern" ]; then
+    cp -R "$from/." "$dest/"
+    node -e '
+      const fs = require("fs"), path = require("path");
+      const [dir, name] = process.argv.slice(1);
+      const read = (f) => { try { return fs.readFileSync(path.join(dir, f), "utf8").trim(); } catch (e) { return ""; } };
+      const sys = read("system.md"), usr = read("user.md");
+      const lines = sys.split("\n").map((l) => l.trim()).filter((l) => l && !/^#+/.test(l) && !/^[-=*]+$/.test(l));
+      const first = (lines[0] || name).slice(0, 160);
+      const body = "---\nname: " + name + "\ndescription: " + JSON.stringify(first) +
+        "\nmetadata:\n  adapted_from: system.md + user.md\n---\n\n# " + name.split("--").pop() +
+        "\n\nUpstream prompts, kept verbatim so the words are not lost. The System half sets the role; the User half is the instruction template.\n\n## System\n\n" + sys +
+        "\n\n## User\n\n" + (usr || "(no user.md upstream)") + "\n";
+      fs.writeFileSync(path.join(dir, "SKILL.md"), body);
+    ' "$dest" "$PACK--$name"
+  else cp "$from" "$dest/SKILL.md"; fi
   # The app resolves a skill by its front-matter name; keep it in step with the folder so two packs
   # that both ship "brainstorming" cannot shadow each other.
   if [ -f "$dest/SKILL.md" ]; then
