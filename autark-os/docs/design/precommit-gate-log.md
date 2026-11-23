@@ -68,3 +68,15 @@ not safe; a pack is agent instructions, so nothing installs without a person typ
 That is not the same as a human review of this specific diff, which is why this decision stays open
 for Mike rather than being closed by me. `RIG_JEV_PRECOMMIT_SKIP=1` was used to land the commit; the
 canonical-root guard ran and returned PASS.
+
+## Third round, 2026-11-23 — applying the packs
+
+| Decision | Verdict | Detail |
+|---|---|---|
+| 339455 | ESCALATE (committed with a warning) | `risk.score=2.76 >= 2.5`: the diff installs skills and can delete them again, so the rubric calls it a boundary crossing |
+
+Unlike the second round this one did not block: the hook's own rule is that ESCALATE commits with a
+warning. It is recorded here rather than closed, and the same note applies - the reviewer wants a
+human, and what exists instead is a transcript: 20 of 20 catalog paths re-opened upstream, 28 skills
+installed and then read back through the app's own `skills.list` RPC, `tests/pack-remove.sh` proving
+an edited file survives a removal, and two zero-context reviews behind the installer's design.
