@@ -1,0 +1,10 @@
+# measured 2026-11-23T19:53:22Z
+layer               files      loc
+src/shared            146    13889
+src/runtime          1113   151255
+src/main              100    14788
+src/preload             2      283
+src/ui                565    58287
+
+runtime top-level modules: 77
+unit test areas: 86
