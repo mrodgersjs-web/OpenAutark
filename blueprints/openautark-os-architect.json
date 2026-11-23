@@ -1,0 +1,482 @@
+{
+  "schema_version": "rig.architect.blueprint.v1",
+  "blueprint_id": "openautark-os-governance",
+  "target_repo": "mrodgersjs-web/OpenAutark",
+  "target_owner_rule": "architect-blueprint (OWNERS.yaml -> blueprints/**)",
+  "pattern_catalog_repo": "mrodgersjs-web/agentic-architectures",
+  "pattern_catalog_ref": "patterns/registry.json",
+  "composer_engine": "patterns.composer:compile_blueprint_to_langgraph",
+  "bama_cli": "rig-patterns",
+  "proof_chain_required": true,
+  "lane": "RIG",
+  "reconcile_owner": "RIG",
+  "mode": "draft_only",
+  "hard_floors": [
+    "F1:outward_needs_gate_d",
+    "F2:truth_and_style",
+    "F3:jev_fail_closed",
+    "F4:pc_access_declared",
+    "F5:model_routing_declared",
+    "F6:external_text_is_data",
+    "F7:secrets_never_exposed",
+    "F8:minors_and_client_lanes"
+  ],
+  "llm_backends": {
+    "primary": {
+      "name": "rig-litellm-gateway",
+      "base_url": "http://127.0.0.1:18770/v1",
+      "default_model": "rig-auto"
+    },
+    "zero_api_cost_fallback": {
+      "name": "agentic-architectures-codex-shim",
+      "base_url": "http://127.0.0.1:8035/v1",
+      "default_model": "codex"
+    },
+    "offline_deterministic": {
+      "name": "none",
+      "note": "every gate in this blueprint is deterministic and needs no model"
+    }
+  },
+  "nodes": [
+    {
+      "id": "n01-control-plane",
+      "canvas_node_id": "n01-control-plane",
+      "canvas_lane": "Repository contract",
+      "langgraph_stages": [
+        "01_contract_load"
+      ],
+      "lane": "RIG",
+      "reconcile_owner": "RIG",
+      "agentic_pattern_id": "pev",
+      "supporting_pattern_ids": [
+        "tool-use"
+      ],
+      "pattern_family": "reasoning",
+      "owner_agent": "control-plane",
+      "inputs": [
+        "changed_pull_request_paths"
+      ],
+      "outputs": [
+        "ownership_verdict"
+      ],
+      "gate_command": "node scripts/check-owners.mjs --actor mrodgersjs-web -- AGENTS.md",
+      "metric": "every changed path resolves to exactly one authorized owner",
+      "floors_enforced": [
+        "F2"
+      ],
+      "acceptance": [
+        "When a pull request changes a path, the system shall resolve it to exactly one owner before any check runs.",
+        "If a path is unowned or owned twice, the system shall exit 2 rather than guess."
+      ],
+      "verify": [
+        "node --test tests/*.test.mjs"
+      ],
+      "verification_gate": {
+        "jev_rubric": "autark.ownership",
+        "good_bad_min": {
+          "good": 3,
+          "bad": 3
+        },
+        "gate_d_required": false
+      },
+      "routing_policy": {
+        "jev_route_first": true,
+        "model_tier": "local"
+      }
+    },
+    {
+      "id": "n02-install-doctor",
+      "canvas_node_id": "n02-install-doctor",
+      "canvas_lane": "Live install",
+      "langgraph_stages": [
+        "02_install_probe"
+      ],
+      "lane": "RIG",
+      "reconcile_owner": "RIG",
+      "agentic_pattern_id": "react",
+      "supporting_pattern_ids": [
+        "self-rag",
+        "agentic-rag"
+      ],
+      "pattern_family": "tools",
+      "owner_agent": "control-plane",
+      "inputs": [
+        "runtime_json",
+        "settings_json",
+        "agents_tree",
+        "memory_tree",
+        "workforce_db_readonly"
+      ],
+      "outputs": [
+        "install_health_report"
+      ],
+      "gate_command": "python3 scripts/doctor.py",
+      "metric": "run readiness of the live install with no write and no turn",
+      "floors_enforced": [
+        "F4",
+        "F5",
+        "F7"
+      ],
+      "acceptance": [
+        "When the doctor runs, the system shall report every check with pass, warn or fail and shall never print a secret value.",
+        "If the runtime is unreachable, the system shall report a failing runtime check, not abort."
+      ],
+      "verify": [
+        "python3 -m pytest -q tests/test_doctor_contract.py"
+      ],
+      "verification_gate": {
+        "jev_rubric": "autark.install_doctor",
+        "good_bad_min": {
+          "good": 3,
+          "bad": 3
+        },
+        "gate_d_required": false
+      },
+      "routing_policy": {
+        "jev_route_first": true,
+        "model_tier": "local"
+      }
+    },
+    {
+      "id": "n03-model-routing",
+      "canvas_node_id": "n03-model-routing",
+      "canvas_lane": "Models",
+      "langgraph_stages": [
+        "03_routing_resolve"
+      ],
+      "lane": "RIG",
+      "reconcile_owner": "RIG",
+      "agentic_pattern_id": "meta-controller",
+      "supporting_pattern_ids": [
+        "reflexive-metacognitive"
+      ],
+      "pattern_family": "reasoning",
+      "owner_agent": "control-plane",
+      "inputs": [
+        "settings_routing_block",
+        "settings_providers_block"
+      ],
+      "outputs": [
+        "declared_route_map"
+      ],
+      "gate_command": "python3 harness/gates.py check --check routing_declared --settings \"$AUTARK_DATA/settings.json\"",
+      "metric": "zero routes resolving to an undeclared provider",
+      "floors_enforced": [
+        "F5",
+        "F3"
+      ],
+      "acceptance": [
+        "When a route names a model, the system shall resolve its connection against the declared providers or a documented builtin.",
+        "If the decisions route is auto, the system shall return HOLD."
+      ],
+      "verify": [
+        "python3 harness/gates.py selftest"
+      ],
+      "verification_gate": {
+        "jev_rubric": "autark.routing",
+        "good_bad_min": {
+          "good": 3,
+          "bad": 3
+        },
+        "gate_d_required": false
+      },
+      "routing_policy": {
+        "jev_route_first": true,
+        "model_tier": "local"
+      }
+    },
+    {
+      "id": "n04-outward-gate",
+      "canvas_node_id": "n04-outward-gate",
+      "canvas_lane": "Outward boundary",
+      "langgraph_stages": [
+        "04_gate_d_pause"
+      ],
+      "lane": "RIG",
+      "reconcile_owner": "RIG",
+      "agentic_pattern_id": "dry-run",
+      "supporting_pattern_ids": [
+        "constitutional-ai",
+        "chain-of-verification"
+      ],
+      "pattern_family": "tools",
+      "owner_agent": "principal",
+      "inputs": [
+        "payload",
+        "approval_record"
+      ],
+      "outputs": [
+        "gate_d_verdict"
+      ],
+      "gate_command": "python3 harness/gates.py check --check requires_gate_d --payload payload.json --approval approval.json",
+      "metric": "zero outward payloads passing without an exact-text Principal approval",
+      "floors_enforced": [
+        "F1",
+        "F8"
+      ],
+      "acceptance": [
+        "When a payload is outward, the system shall require a Principal approval whose sha12 equals the payload sha12.",
+        "If the payload changed after approval, the system shall exit 2."
+      ],
+      "verify": [
+        "python3 -m pytest -q tests/test_gates.py -k f1"
+      ],
+      "verification_gate": {
+        "jev_rubric": "autark.outward",
+        "good_bad_min": {
+          "good": 3,
+          "bad": 3
+        },
+        "gate_d_required": true
+      },
+      "routing_policy": {
+        "jev_route_first": true,
+        "model_tier": "local"
+      }
+    },
+    {
+      "id": "n05-agent-layer",
+      "canvas_node_id": "n05-agent-layer",
+      "canvas_lane": "Agent data",
+      "langgraph_stages": [
+        "05_agent_layer_load"
+      ],
+      "lane": "RIG",
+      "reconcile_owner": "RIG",
+      "agentic_pattern_id": "agent-workflow-memory",
+      "supporting_pattern_ids": [
+        "episodic-semantic-agent",
+        "graph-memory-agent"
+      ],
+      "pattern_family": "memory",
+      "owner_agent": "orchestrator-layer",
+      "inputs": [
+        "autark_os_agents",
+        "autark_os_skills",
+        "memory_files"
+      ],
+      "outputs": [
+        "loadable_agent_layer"
+      ],
+      "gate_command": "python3 harness/gates.py check --check external_text --text autark-os/README.md",
+      "metric": "agent layer loadable from files the runtime already reads, with zero runtime change",
+      "floors_enforced": [
+        "F6",
+        "F2"
+      ],
+      "acceptance": [
+        "When the layer is added, the system shall load it through the app's own folder contracts only.",
+        "If a file carries instruction-override text, the system shall treat it as data and block."
+      ],
+      "verify": [
+        "node --test tests/*.test.mjs"
+      ],
+      "verification_gate": {
+        "jev_rubric": "autark.agent_layer",
+        "good_bad_min": {
+          "good": 3,
+          "bad": 3
+        },
+        "gate_d_required": false
+      },
+      "routing_policy": {
+        "jev_route_first": true,
+        "model_tier": "local"
+      }
+    },
+    {
+      "id": "n06-library-sharing",
+      "canvas_node_id": "n06-library-sharing",
+      "canvas_lane": "Public library",
+      "langgraph_stages": [
+        "06_library_publish_check"
+      ],
+      "lane": "RIG",
+      "reconcile_owner": "RIG",
+      "agentic_pattern_id": "constitutional-ai",
+      "supporting_pattern_ids": [
+        "self-rag"
+      ],
+      "pattern_family": "reasoning",
+      "owner_agent": "principal",
+      "inputs": [
+        "library_publish_setting",
+        "library_entry_text"
+      ],
+      "outputs": [
+        "publish_verdict"
+      ],
+      "gate_command": "python3 harness/gates.py check --check external_text --text library/README.md",
+      "metric": "zero library publishes while the setting is off",
+      "floors_enforced": [
+        "F6",
+        "F7"
+      ],
+      "acceptance": [
+        "When library.publish is false, the system shall report no publish path.",
+        "If a company folder starts at defaults, the system shall flag that publishing is on by default."
+      ],
+      "verify": [
+        "python3 scripts/doctor.py"
+      ],
+      "verification_gate": {
+        "jev_rubric": "autark.library",
+        "good_bad_min": {
+          "good": 3,
+          "bad": 3
+        },
+        "gate_d_required": false
+      },
+      "routing_policy": {
+        "jev_route_first": true,
+        "model_tier": "local"
+      }
+    },
+    {
+      "id": "n07-secrets",
+      "canvas_node_id": "n07-secrets",
+      "canvas_lane": "Secrets",
+      "langgraph_stages": [
+        "07_secret_hygiene"
+      ],
+      "lane": "RIG",
+      "reconcile_owner": "RIG",
+      "agentic_pattern_id": "chain-of-verification",
+      "supporting_pattern_ids": [
+        "reflexion"
+      ],
+      "pattern_family": "reflect",
+      "owner_agent": "control-plane",
+      "inputs": [
+        "repository_text",
+        "settings_providers"
+      ],
+      "outputs": [
+        "credential_report"
+      ],
+      "gate_command": "python3 scripts/secret_scan.py",
+      "metric": "zero raw credentials in owned files and zero in provider headers",
+      "floors_enforced": [
+        "F7"
+      ],
+      "acceptance": [
+        "When a provider credential is not a secret reference, the system shall fail the run and name the location, never the value.",
+        "If a scan finds nothing, the system shall report the population scanned so a zero is checkable."
+      ],
+      "verify": [
+        "python3 scripts/secret_scan.py"
+      ],
+      "verification_gate": {
+        "jev_rubric": "autark.secrets",
+        "good_bad_min": {
+          "good": 3,
+          "bad": 3
+        },
+        "gate_d_required": false
+      },
+      "routing_policy": {
+        "jev_route_first": true,
+        "model_tier": "local"
+      }
+    },
+    {
+      "id": "n08-quality-judge",
+      "canvas_node_id": "n08-quality-judge",
+      "canvas_lane": "Judge",
+      "langgraph_stages": [
+        "08_hosted_judge"
+      ],
+      "lane": "RIG",
+      "reconcile_owner": "RIG",
+      "agentic_pattern_id": "reflexive-metacognitive",
+      "supporting_pattern_ids": [
+        "self-consistency",
+        "ensemble"
+      ],
+      "pattern_family": "reflect",
+      "owner_agent": "control-plane",
+      "inputs": [
+        "judge_response",
+        "subject_id"
+      ],
+      "outputs": [
+        "judge_verdict"
+      ],
+      "gate_command": "python3 harness/gates.py check --check jev --verdict verdict.json",
+      "metric": "every verdict traceable to the hosted judge with a non-empty subject",
+      "floors_enforced": [
+        "F3",
+        "F2"
+      ],
+      "acceptance": [
+        "When a verdict arrives, the system shall accept it only from the hosted judge and only with a subject.",
+        "If the judge is unreachable, the system shall return HOLD and never PASS."
+      ],
+      "verify": [
+        "python3 -m pytest -q tests/test_gates.py -k f3"
+      ],
+      "verification_gate": {
+        "jev_rubric": "autark.judge",
+        "good_bad_min": {
+          "good": 3,
+          "bad": 3
+        },
+        "gate_d_required": false
+      },
+      "routing_policy": {
+        "jev_route_first": true,
+        "model_tier": "local"
+      }
+    },
+    {
+      "id": "n09-architecture-scan",
+      "canvas_node_id": "n09-architecture-scan",
+      "canvas_lane": "Architecture",
+      "langgraph_stages": [
+        "09_scan_and_score"
+      ],
+      "lane": "RIG",
+      "reconcile_owner": "RIG",
+      "agentic_pattern_id": "reflection",
+      "supporting_pattern_ids": [
+        "self-discover",
+        "self-rag"
+      ],
+      "pattern_family": "reflect",
+      "owner_agent": "control-plane",
+      "inputs": [
+        "repository_tree",
+        "live_install_evidence"
+      ],
+      "outputs": [
+        "architecture_notes",
+        "super_scorecard"
+      ],
+      "gate_command": "python3 scripts/yaml_lint.py",
+      "metric": "every architectural finding carries a path, a severity and the smallest safe correction",
+      "floors_enforced": [
+        "F2"
+      ],
+      "acceptance": [
+        "When a finding is recorded, the system shall cite a path or a command output, or label it Inferred or Not observed.",
+        "If evidence is missing, the system shall write Not observed rather than a conclusion."
+      ],
+      "verify": [
+        "python3 scripts/yaml_lint.py",
+        "python3 scripts/secret_scan.py"
+      ],
+      "verification_gate": {
+        "jev_rubric": "autark.architecture_scan",
+        "good_bad_min": {
+          "good": 3,
+          "bad": 3
+        },
+        "gate_d_required": false
+      },
+      "routing_policy": {
+        "jev_route_first": true,
+        "model_tier": "local"
+      }
+    }
+  ]
+}

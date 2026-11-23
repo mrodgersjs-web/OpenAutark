@@ -1,0 +1,46 @@
+name: governance
+
+on:
+  pull_request:
+  push:
+    branches: [main, "taste/**"]
+
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pyyaml pytest
+      - name: Ownership of every changed path
+        run: |
+          BASE="${{ github.event.pull_request.base.sha || github.event.before }}"
+          CHANGED=$(git diff --name-only "$BASE" HEAD)
+          test -n "$CHANGED" || { echo "no changed paths to check"; exit 0; }
+          printf '%s\n' "$CHANGED" > /tmp/changed.txt
+          node --input-type=module -e "
+            import { readFileSync } from 'node:fs';
+            import { loadOwners, matchingOwners } from './scripts/check-owners.mjs';
+            const config = loadOwners();
+            const paths = readFileSync('/tmp/changed.txt','utf8').split('\n').filter(Boolean);
+            const unowned = paths.filter((p) => matchingOwners(p, config).length !== 1);
+            if (unowned.length) { console.error('BLOCK unowned or ambiguous: ' + unowned.join(', ')); process.exit(2); }
+            console.log('ownership ok for ' + paths.length + ' path(s)');
+          "
+      - name: YAML and JSON parse
+        run: python3 scripts/yaml_lint.py
+      - name: Secret scan
+        run: python3 scripts/secret_scan.py
+      - name: Floor gate selftest
+        run: python3 harness/gates.py selftest
+      - name: Ownership tests
+        run: node --test tests/*.test.mjs
+      - name: Contract tests
+        run: python3 -m pytest -q tests
